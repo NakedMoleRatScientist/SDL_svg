@@ -476,6 +476,8 @@ int n;
 int startnum;
 struct spantab spans;
 svg_paint_t *paint;
+const svg_color_t *rgb;
+int alpha;
 
 	path = c->path;
 
@@ -491,11 +493,9 @@ svg_paint_t *paint;
 	}
 
 	paint = c->paint;
-	renderfunc = solidstrip; // fall back on this
-	if(paint->type != SVG_PAINT_TYPE_GRADIENT)
+	switch(paint->type)
 	{
-		const svg_color_t *rgb;
-		int alpha;
+	case SVG_PAINT_TYPE_COLOR:
 		rgb = &paint->p.color;
 		alpha = 255.0 * c->FillOpacity;
 		c->solidcolor = maprgb(c->surface,
@@ -503,9 +503,9 @@ svg_paint_t *paint;
 			svg_color_get_green(rgb),
 			svg_color_get_blue(rgb)) |
 			(alpha << 24);
-
-	} else
-	{
+		renderfunc = solidstrip;
+		break;
+	case SVG_PAINT_TYPE_GRADIENT:
 		colorstops = paint->p.gradient->num_stops;
 		for(i=0;i<colorstops-1;++i)
 		{
@@ -565,7 +565,7 @@ svg_paint_t *paint;
 				{ paint->p.gradient->u.radial.fx.value,
 				  paint->p.gradient->u.radial.fy.value};
 			c->gradient_r = paint->p.gradient->u.radial.r.value;
-		}
+		} else renderfunc = 0;
 
 		if(paint->p.gradient->units==SVG_GRADIENT_UNITS_USER)
 		{
@@ -582,7 +582,10 @@ svg_paint_t *paint;
 				miny + c->gradient_p2.y * (maxy - miny + 1)};
 			c->gradient_r = c->gradient_r * (maxx - minx + 1);
 		}
-
+		break;
+	default:
+		renderfunc = 0;
+		break;
 	}
 
 	initspantab(&spans);
@@ -595,5 +598,6 @@ svg_paint_t *paint;
 		startnum = n;
 
 	}
-	renderspans(&spans, renderfunc, c);
+	if(renderfunc)
+		renderspans(&spans, renderfunc, c);
 }

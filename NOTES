@@ -1,4 +1,11 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Sun Jan 16 20:29:38 PST 2005
+
+Current version is 105, however this isn't stored anywhere.
+
+Got rid of #include <svg.h> from header file, so other programs that make
+use of SDL_svg.h don't need to worry about svg.h.
+----------------------------------------------------------------------------
 David Ashley (DA) Sun Jan 16 15:24:12 PST 2005
 
 Current version is 104, however this isn't stored anywhere.
