@@ -572,7 +572,28 @@ _SDL_SVG_RenderEllipse (void *closure,
 SDL_svg_context *c=closure;
 IPoint center;
 IPoint size1, size2;
-	dprintf("svg_RenderEllipse\n");
+svg_length_t rx2, ry2;
+svg_length_t tcx, tcy;
+
+	printf("svg_RenderEllipse\n");
+
+	rx2 = *rx_len;
+	rx2.value *= 2.0;
+
+	ry2 = *ry_len;
+	ry2.value *= 2.0;
+
+	tcx = *cx_len;
+	tcx.value -= rx_len->value;
+
+	tcy = *cy_len;
+	tcy.value -= ry_len->value;
+
+	_SDL_SVG_RenderRect(c,
+			&tcx, &tcy,
+			&rx2, &ry2,
+			rx_len, ry_len);
+/*
 
 	center = FixCoords(c, (IPoint)
 			{c->at.x + cx_len->value, c->at.y + cy_len->value});
@@ -582,6 +603,7 @@ IPoint size1, size2;
 
 //	filledEllipseRGBA(c->surface, center.x, center.y, size.x, size.y, R,G,B,A);
 //	aaellipseRGBA(c->surface, center.x, center.y, size.x, size.y, R,G,B,A);
+*/
 
 	return SVG_STATUS_SUCCESS;
 }
@@ -596,23 +618,44 @@ _SDL_SVG_RenderRect (void *closure,
 					svg_length_t *ry_len)
 {
 SDL_svg_context *c=closure;
-float x1,y1;
-float x2,y2;
+double x, y, width, height, rx, ry;
 
 	dprintf("svg_RenderRect\n");
 
-	x1 = x_len->value;
-	y1 = y_len->value;
+ 
+	x = ConvertLength(x_len);
+	y = ConvertLength(y_len);
+	width = ConvertLength(width_len);
+	height = ConvertLength(height_len);
+	rx = ConvertLength(rx_len);
+	ry = ConvertLength(ry_len);
+ 
+	if (rx > width / 2.0)
+		rx = width / 2.0;
+	if (ry > height / 2.0)
+		ry = height / 2.0;
 
-	x2 = x1 + width_len->value;
-	y2 = y1 + height_len->value;
+	if (rx > 0 || ry > 0)
+	{
+		_SDL_SVG_MoveTo (c, x + rx, y);
+		_SDL_SVG_LineTo (c, x + width - rx, y);
+		_SDL_SVG_ArcTo  (c, rx, ry, 0, 0, 1, x + width, y + ry);
+		_SDL_SVG_LineTo (c, x + width, y + height - ry);
+		_SDL_SVG_ArcTo  (c, rx, ry, 0, 0, 1, x + width - rx, y + height);
+		_SDL_SVG_LineTo (c, x + rx, y + height);
+		_SDL_SVG_ArcTo  (c, rx, ry, 0, 0, 1, x, y + height - ry);
+		_SDL_SVG_LineTo (c, x, y + ry);
+		_SDL_SVG_ArcTo  (c, rx, ry, 0, 0, 1, x + rx, y);
+	}
+	else
+	{
+		_SDL_SVG_MoveTo (c, x, y);
+		_SDL_SVG_LineTo (c, x + width, y);
+		_SDL_SVG_LineTo (c, x + width, y + height);
+		_SDL_SVG_LineTo (c, x, y + height);
+	}
+	_SDL_SVG_ClosePath (c);
 
-	_extremes(c, x1, y1);
-	_extremes(c, x2, y2);
-	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y1}), TAG_ONPATH);
-	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y1}), TAG_ONPATH);
-	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y2}), TAG_ONPATH);
-	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y2}), TAG_ONPATH);
 	_SDL_SVG_RenderPath(closure);
 
 	return SVG_STATUS_SUCCESS;
@@ -650,6 +693,59 @@ static svg_status_t _SDL_SVG_ApplyViewBox (void *closure,
 	return SVG_STATUS_SUCCESS;
 }
 
+/* The ellipse and arc functions below are:
+ 
+   Copyright (C) 2000 Eazel, Inc.
+  
+   Author: Raph Levien <raph@artofcode.com>
+
+   This is adapted from svg-path in Gill.
+*/
+static void
+_svg_path_arc_segment (SDL_svg_context *c,
+		       double xc, double yc,
+		       double th0, double th1,
+		       double rx, double ry, double x_axis_rotation)
+{
+	double sin_th, cos_th;
+	double a00, a01, a10, a11;
+	double x1, y1, x2, y2, x3, y3;
+	double t;
+	double th_half;
+
+	sin_th = sin (x_axis_rotation * (M_PI / 180.0));
+	cos_th = cos (x_axis_rotation * (M_PI / 180.0)); 
+	/* inverse transform compared with rsvg_path_arc */
+	a00 = cos_th * rx;
+	a01 = -sin_th * ry;
+	a10 = sin_th * rx;
+	a11 = cos_th * ry;
+
+	th_half = 0.5 * (th1 - th0);
+	t = (8.0 / 3.0) * sin (th_half * 0.5) * sin (th_half * 0.5) / sin (th_half);
+	x1 = xc + cos (th0) - t * sin (th0);
+	y1 = yc + sin (th0) + t * cos (th0);
+	x3 = xc + cos (th1);
+	y3 = yc + sin (th1);
+	x2 = x3 + t * sin (th1);
+	y2 = y3 - t * cos (th1);
+
+	_SDL_SVG_CurveTo (c, a00 * x1 + a01 * y1, a10 * x1 + a11 * y1,
+		a00 * x2 + a01 * y2, a10 * x2 + a11 * y2,
+		a00 * x3 + a01 * y3, a10 * x3 + a11 * y3);
+}
+
+
+/**
+ * rx: Radius in x direction (before rotation).
+ * ry: Radius in y direction (before rotation).
+ * x_axis_rotation: Rotation angle for axes.
+ * large_arc_flag: 0 for arc length <= 180, 1 for arc >= 180.
+ * sweep: 0 for "negative angle", 1 for "positive angle".
+ * x: New x coordinate.
+ * y: New y coordinate.
+ *
+ **/
 static svg_status_t _SDL_SVG_ArcTo (void *closure,
                                     double rx,
                                     double ry,
@@ -659,7 +755,88 @@ static svg_status_t _SDL_SVG_ArcTo (void *closure,
                                     double x,
                                     double y)
 {
+SDL_svg_context *c=closure;
+double sin_th, cos_th;
+double a00, a01, a10, a11;
+double x0, y0, x1, y1, xc, yc;
+double d, sfactor, sfactor_sq;
+double th0, th1, th_arc;
+int i, n_segs;
+double dx, dy, dx1, dy1, Pr1, Pr2, Px, Py, check;
+double curx, cury;
+
 	dprintf("svg_ArcTo\n");
+
+	rx = fabs (rx);
+	ry = fabs (ry);
+
+	curx = c->at.x;
+	cury = c->at.y;
+
+	sin_th = sin (x_axis_rotation * (M_PI / 180.0));
+	cos_th = cos (x_axis_rotation * (M_PI / 180.0));
+
+	dx = (curx - x) / 2.0;
+	dy = (cury - y) / 2.0;
+	dx1 =  cos_th * dx + sin_th * dy;
+	dy1 = -sin_th * dx + cos_th * dy;
+	Pr1 = rx * rx;
+	Pr2 = ry * ry;
+	Px = dx1 * dx1;
+	Py = dy1 * dy1;
+	/* Spec : check if radii are large enough */
+	check = Px / Pr1 + Py / Pr2;
+	if(check > 1)
+	{
+		rx = rx * sqrt(check);
+		ry = ry * sqrt(check);
+	}
+
+	a00 = cos_th / rx;
+	a01 = sin_th / rx;
+	a10 = -sin_th / ry;
+	a11 = cos_th / ry;
+	x0 = a00 * curx + a01 * cury;
+	y0 = a10 * curx + a11 * cury;
+	x1 = a00 * x + a01 * y;
+	y1 = a10 * x + a11 * y;
+	/* (x0, y0) is current point in transformed coordinate space.
+	   (x1, y1) is new point in transformed coordinate space.
+	   
+	   The arc fits a unit-radius circle in this space.
+	*/
+	d = (x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0);
+	sfactor_sq = 1.0 / d - 0.25;
+	if (sfactor_sq < 0) sfactor_sq = 0;
+	sfactor = sqrt (sfactor_sq);
+	if (sweep_flag == large_arc_flag) sfactor = -sfactor;
+	xc = 0.5 * (x0 + x1) - sfactor * (y1 - y0);
+	yc = 0.5 * (y0 + y1) + sfactor * (x1 - x0);
+	/* (xc, yc) is center of the circle. */
+	
+	th0 = atan2 (y0 - yc, x0 - xc);
+	th1 = atan2 (y1 - yc, x1 - xc);
+	
+	th_arc = th1 - th0;
+	if (th_arc < 0 && sweep_flag)
+	th_arc += 2 * M_PI;
+	else if (th_arc > 0 && !sweep_flag)
+	th_arc -= 2 * M_PI;
+
+	/* XXX: I still need to evaluate the math performed in this
+	   function. The critical behavior desired is that the arc must be
+	   approximated within an arbitrary error tolerance, (which the
+	   user should be able to specify as well). I don't yet know the
+	   bounds of the error from the following computation of
+	   n_segs. Plus the "+ 0.001" looks just plain fishy. -cworth */
+	n_segs = ceil (fabs (th_arc / (M_PI * 0.5 + 0.001)));
+	
+	for (i = 0; i < n_segs; i++) {
+		_svg_path_arc_segment (c, xc, yc,
+					th0 + i * th_arc / n_segs,
+					th0 + (i + 1) * th_arc / n_segs,
+					rx, ry, x_axis_rotation);
+	}
 	return SVG_STATUS_SUCCESS;
 }
 
