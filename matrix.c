@@ -83,8 +83,8 @@ svg_matrix_t dst;
 	dst.b = -in->b/det;
 	dst.c = -in->c/det;
 	dst.d = in->a/det;
-	dst.e = in->c * in->f - in->d * in->e;
-	dst.f = in->b * in->e - in->a * in->f;
+	dst.e = (in->c * in->f - in->d * in->e)/det;
+	dst.f = (in->b * in->e - in->a * in->f)/det;
 	return dst;
 
 }

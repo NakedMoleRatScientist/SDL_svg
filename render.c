@@ -466,7 +466,7 @@ svg_matrix_t tm;
 // invert it
 		tm = svg_matrix_invert(&tm);
 // apply it to our own gm
-		svg_matrix_multiply(&c->gm, &c->gm, &tm);
+		svg_matrix_multiply(&c->gm, &tm, &c->gm);
 
 		break;
 	default:
