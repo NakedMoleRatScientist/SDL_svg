@@ -1,4 +1,35 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Sun Jan 16 08:10:08 PST 2005
+
+Current version is 102, however this isn't stored anywhere.
+
+I further improved the spanning m echanics, so as pairs of spans come in
+I immediately convert them to run lists, so the only growable piece are the
+run linsts. Currently set to a maximum of 32 runs but there is no bounds
+checking going on.
+
+Came up with a fix for the problem with multiple separate paths in the same
+element, when converting each path to a span just reverse the "sense" of
+all the spans for rows below the starting point's row.
+
+If you start at 9 O'clock and run a path clockwise in a circle, the
+upper half will have spans all pointing left to right, but the bottom half
+will have spans pointing right to left. We just doctor up everything below
+the initial row, so all spans end up pointing left to right. If we do this
+for each separate path, we solve the problem, so it doesn't matter where
+on the path you start the "sense" of the spans will all be consistent.
+There is an edge case if you move down from the first row, you need to
+reverse the first row itself also. If you move up from the first row, you
+don't want to reverse the first row itself.
+
+There is still some span problem as shown by the svg/filltest.svg example,
+in the lower left case there is a strip that isn't rendered. I haven't
+figured out what is causing this.
+
+I think the current code is a lot cleaner. A bounds check can be added to
+the mergespans function to prevent writing off the end of the runs table in
+a row.
+----------------------------------------------------------------------------
 David Ashley (DA) Sat Jan 15 21:36:15 PST 2005
 
 Current version is 101, however this isn't stored anywhere.
