@@ -210,9 +210,17 @@ static void adddot(struct spantab *spantab, int x, int y)
 		}
 		if(spantab->lasty>=0)
 		{
-			newcrossing(spantab);
-			if(y==spantab->lastlasty)
+			if(y!=spantab->lastlasty)
 				newcrossing(spantab);
+			else
+			{
+				int t;
+				t=spantab->xout;
+				spantab->xout = spantab->xin;
+				newcrossing(spantab);
+				spantab->xin = spantab->xout = t;
+				newcrossing(spantab);
+			}
 		}
 		spantab->lastlasty=spantab->lasty;
 		spantab->lasty=y;
