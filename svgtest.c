@@ -47,13 +47,13 @@ int code;
 	SDL_UpdateRect(screen,0,0,0,0);
 
 	SDL_svg_context *TestImage = SVG_Load (argv[1]);
-	SVG_SetOffset (TestImage,TestImage->w/2,TestImage->h/2);
+	SVG_SetOffset (TestImage,SVG_Width(TestImage)/2,SVG_Height(TestImage)/2);
 
 	if(argc>2) sscanf(argv[2], "%d", &dx);
 	if(argc>3) sscanf(argv[3], "%d", &dy);
 
-	Scalex = screen->w / TestImage->w;
-	Scaley = screen->h / TestImage->h;
+	Scalex = screen->w / SVG_Width(TestImage);
+	Scaley = screen->h / SVG_Height(TestImage);
 	SVG_SetScale (TestImage, Scalex, Scaley);
 	SVG_RenderToSurface (TestImage,screen->w/2+dx,screen->h/2+dy,screen);
 

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <math.h>
 #include "SDL_svg.h"
+#include "internals.h"
 #include <svg.h>
 
 static svg_status_t _SDL_SVG_BeginGroup (void *closure, double opacity);
@@ -664,8 +665,10 @@ float f=1.0;
 	return l->value*f;
 }
 
-SDL_svg_context *
-SVG_Load (const char* FileName)
+#define LOAD_TYPE_FILE     1
+#define LOAD_TYPE_MEMORY   2
+
+static SDL_svg_context *internal_SVG_Load(void *arg1, int arg2, int type)
 {
 svg_length_t Width;
 svg_length_t Height;
@@ -673,32 +676,54 @@ SDL_svg_context *Source;
 
 	Source = create_SDL_svg_context();
 	svg_create ((svg_t **)&(Source->SVG));
-	svg_parse (Source->SVG,FileName);
+	if(type==LOAD_TYPE_FILE)
+		svg_parse (Source->SVG,(char *)arg1);
+	else
+		svg_parse_buffer(Source->SVG, (char *)arg1, arg2);
 	svg_get_size (Source->SVG,&Width,&Height);
 	Source->w = ConvertLength(&Width);
 	Source->h = ConvertLength(&Height);
 
 	return Source;
+
 }
 
-int
-SVG_SetOffset (SDL_svg_context *Source, double aOffsetX, double aOffsetY)
+SDL_svg_context *SVG_Load(const char* FileName)
+{
+	return internal_SVG_Load((void *)FileName, 0, LOAD_TYPE_FILE);
+}
+
+SDL_svg_context *SVG_LoadBuffer(char *p, int len)
+{
+	return internal_SVG_Load(p, len, LOAD_TYPE_MEMORY);
+}
+
+int SVG_SetOffset(SDL_svg_context *Source, double aOffsetX, double aOffsetY)
 {
 	Source->OffsetX = aOffsetX;
 	Source->OffsetY = aOffsetY;
 	return SVG_STATUS_SUCCESS;
 }
 
-int
-SVG_SetScale (SDL_svg_context *Source, double aScaleX, double aScaleY)
+int SVG_SetScale(SDL_svg_context *Source, double aScaleX, double aScaleY)
 {
 	Source->ScaleX = aScaleX;
 	Source->ScaleY = aScaleY;
 	return SVG_STATUS_SUCCESS;
 }
 
-int
-SVG_RenderToSurface (SDL_svg_context *Source, int X, int Y, SDL_Surface *Target)
+float SVG_Width(SDL_svg_context *c)
+{
+	return c->w;
+}
+
+float SVG_Height(SDL_svg_context *c)
+{
+	return c->h;
+}
+
+int SVG_RenderToSurface(SDL_svg_context *Source, int X, int Y,
+		SDL_Surface *Target)
 {
 	Source->surface = Target;
 	Source->TargetOffsetX = X;
@@ -707,8 +732,7 @@ SVG_RenderToSurface (SDL_svg_context *Source, int X, int Y, SDL_Surface *Target)
 	return svg_render (Source->SVG, &SDL_SVG_RenderEngine, Source);
 }
 
-void
-SVG_Free (SDL_svg_context *Source)
+void SVG_Free(SDL_svg_context *Source)
 {
 	svg_destroy (Source->SVG);
 	destroy_SDL_svg_context (Source);

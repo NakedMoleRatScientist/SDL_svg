@@ -1,5 +1,6 @@
 #include <SDL.h>
 #include "SDL_svg.h"
+#include "internals.h"
 #include <math.h>
 #include <svg.h>
 
@@ -20,17 +21,16 @@ static void colordot(void *arg, int x, int y, unsigned long c)
 	else
 	{
 		unsigned long *p,t;
-		int a,ai;
+		unsigned long a,ai;
 		p=((unsigned long *)((SDL_Surface *)arg)->pixels)+y *
 			((SDL_Surface *)arg)->pitch/4+x;
 		a=c>>24;
 		ai=a^255;
 		t=*p;
 
-		*p = ((a*(c&255) + ai*(t&255))>>8) |
-			(((a*((c>>8)&255) + ai*((t>>8)&255))>>8)<<8) |
-			(((a*((c>>16)&255) + ai*((t>>16)&255))>>8)<<16);
-
+		*p = ((a*(c&0xff) + ai*(t&0xff))>>8) |
+			(((a*(c&0xff00) + ai*(t&0xff00))&0xff0000)>>8) |
+			(((a*(c&0xff0000) + ai*(t&0xff0000))&0xff000000)>>8);
 	}
 }
 

@@ -1,12 +1,15 @@
+#include <stdlib.h>
+#include <math.h>
+#include "SDL_svg.h"
+#include "internals.h"
+
+
 /*
    SDL_matrix.c
 
 */
 
-#include "SDL_svg.h"
 
-#include <stdlib.h>
-#include <math.h>
 
 /*
    Matrix looks like this:
