@@ -109,10 +109,12 @@ static void lineargradient(SDL_svg_context *c, void *_span, int y)
 float cx,cy;
 float vx,vy;
 float f;
-float dx,dy,dyvy;
+float dx,dy;
 int dp;
 int policy;
 int x, w, coverage;
+float xp,yp;
+
 
 	x=((FT_Span *)_span)->x;
 	w=((FT_Span *)_span)->len;
@@ -127,15 +129,18 @@ int x, w, coverage;
 	vx=c->gradient_p2.x - cx;
 	vy=c->gradient_p2.y - cy;
 
-	f=vx*vx+vy*vy;
+	f=(vx*vx+vy*vy);
 
-	dy=y-cy;
-	dyvy = dy*vy;
+	xp = x + c->e;
+	yp = y + c->f;
+
+	dx = c->a * xp + c->b * yp - cx;
+	dy = c->c * xp + c->d * yp - cy;
 
 	while(w--)
 	{
-		dx = x - cx;
-		dp=(NUM_GRADIENT_COLORS-1) *(dx*vx + dyvy)/f;
+
+		dp=(NUM_GRADIENT_COLORS-1) *(dx*vx + dy*vy)/f;
 		if(policy == SVG_GRADIENT_SPREAD_PAD)
 		{
 			if(dp<0) dp=0;
@@ -150,6 +155,8 @@ int x, w, coverage;
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
 		c->colordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
+		dx+=c->a;
+		dy+=c->c;
 	}
 }
 
@@ -185,8 +192,8 @@ float v;
 int dp;
 float cx,cy;
 float r,r2;
-float dy2,y1cdy;
 int x, w, coverage;
+float xp, yp;
 
 	x=((FT_Span *)_span)->x;
 	w=((FT_Span *)_span)->len;
@@ -201,14 +208,17 @@ int x, w, coverage;
 	x1c=c->gradient_p2.x - cx;
 	y1c=c->gradient_p2.y - cy;
 	vc=x1c*x1c + y1c*y1c - r2;
-	dy=y - c->gradient_p2.y;
-	dy2=dy * dy;
-	y1cdy=y1c * dy;
+
+	xp = x + c->e;
+	yp = y + c->f;
+
+	dx=c->a * xp + c->b * yp - c->gradient_p2.x;
+	dy=c->c * xp + c->d * yp - c->gradient_p2.y;
+//printf("%f %f %f %f\n", dx, dy, c->gradient_p2.x, c->gradient_p2.y);
 	while(w--)
 	{
-		dx=x - c->gradient_p2.x;
-		va=dx*dx+dy2;
-		vb=2*(x1c*dx + y1cdy);
+		va=dx*dx+dy*dy;
+		vb=2*(x1c*dx + y1c*dy);
 		if(dy || dx)
 		{
 			v=sqrt(vb*vb-4*va*vc);
@@ -229,6 +239,8 @@ int x, w, coverage;
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
 		c->colordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
+		dx += c->a;
+		dy += c->c;
 	}
 
 }
@@ -296,7 +308,9 @@ int iscomposite;
 	myoutline.points = points;
 	myoutline.tags = c->tags;
 	myoutline.contours = c->pathstops;
-	myoutline.flags = FT_OUTLINE_IGNORE_DROPOUTS | FT_OUTLINE_EVEN_ODD_FILL;
+	myoutline.flags = FT_OUTLINE_IGNORE_DROPOUTS |
+		((c->fill_rule == SVG_FILL_RULE_EVEN_ODD) ?
+			FT_OUTLINE_EVEN_ODD_FILL : 0);
 
 	myparams.target = 0;
 	myparams.source = &myoutline;
@@ -328,8 +342,8 @@ void svg_render_solid(SDL_svg_context *c)
 int i,j;
 int colorstops;
 //void (*renderfunc)(SDL_svg_context *c, int x, int y, int w);
-float minx, miny, maxx, maxy;
-IPoint *ip;
+IPoint vx, vy, tv;
+float xx,xy,yx,yy, det;
 IPoint *path;
 svg_paint_t *paint;
 const svg_color_t *rgb;
@@ -338,16 +352,30 @@ int alpha;
 	c->renderfunc = 0;
 	path = c->path;
 
-	minx=miny = 0x7fffffff;
-	maxx=maxy =-0x7fffffff;
+	tv = FixCoords(c, (IPoint) {c->minx, c->miny});
+	vx = FixCoords(c, (IPoint) {c->maxx, c->miny});
+	vy = FixCoords(c, (IPoint) {c->minx, c->maxy});
 
-	for(i=0, ip=path;i<c->numpoints;++i,++ip)
+// x' = x+e
+// y' = y+f
+// x'' = ax' + by'
+// y'' = cx' + dy'
+
+	c->e = -tv.x;
+	c->f = -tv.y;
+	xx = vx.x - tv.x;
+	xy = vx.y - tv.y;
+	yx = vy.x - tv.x;
+	yy = vy.y - tv.y;
+	det = xx*yy - xy*yx;
+	if(det != 0.0)
 	{
-		if(ip->x<minx) minx=ip->x;
-		if(ip->x>maxx) maxx=ip->x;
-		if(ip->y<miny) miny=ip->y;
-		if(ip->y>maxy) maxy=ip->y;
-	}
+		c->a = yy / det;
+		c->b = -yx / det;
+		c->c = -xy / det;
+		c->d = xx / det;
+	} else
+		c->a = c->b = c->c = c->d = 0.0;
 
 	paint = c->paint;
 	switch(paint->type)
@@ -405,6 +433,7 @@ int alpha;
 		c->gradient_policy = paint->p.gradient->spread;
 		if (paint->p.gradient->type == SVG_GRADIENT_LINEAR)
 		{
+// need to conver from percentages as necessary
 			c->renderfunc = lineargradient;
 			c->gradient_p1 = (IPoint)
 				{ paint->p.gradient->u.linear.x1.value,
@@ -431,13 +460,6 @@ int alpha;
 			c->gradient_r = FixSizes(c, (IPoint) {c->gradient_r, 0.0}).x;
 		} else // BBOX
 		{
-			c->gradient_p1 = (IPoint)
-				{minx + c->gradient_p1.x * (maxx - minx + 1),
-				miny + c->gradient_p1.y * (maxy - miny + 1)};
-			c->gradient_p2 = (IPoint)
-				{minx + c->gradient_p2.x * (maxx - minx + 1), 
-				miny + c->gradient_p2.y * (maxy - miny + 1)};
-			c->gradient_r = c->gradient_r * (maxx - minx + 1);
 		}
 		break;
 	default:

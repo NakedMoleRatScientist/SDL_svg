@@ -51,6 +51,9 @@ struct SDL_svg_context {
 	void (*renderfunc)(SDL_svg_context *c, void *span, int y);
 	void (*colordot)(SDL_Surface *, int x, int y, unsigned long c, int f2);
 	char pool[0x40000]; // memory area used by gray raster engine
+//
+	float a,b,c,d,e,f;
+	float minx, miny, maxx, maxy;
 
 // svg_fill_rule_t
 	int fill_rule;

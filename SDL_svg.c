@@ -156,6 +156,13 @@ void poptmatrix(SDL_svg_context *c)
 	c->tmatrixsp = (c->tmatrixsp - 1) & (MATRIXSTACKDEPTH-1);
 }
 
+static void _extremes(SDL_svg_context *c, float x, float y)
+{
+	if(x < c->minx) c->minx=x;
+	if(y < c->miny) c->miny=y;
+	if(x > c->maxx) c->maxx=x;
+	if(y > c->maxy) c->maxy=y;
+}
 
 IPoint FixCoords(SDL_svg_context *c, IPoint p)
 {
@@ -237,8 +244,13 @@ static svg_status_t _SDL_SVG_BeginGroup (void *closure, double opacity)
 
 static svg_status_t _SDL_SVG_BeginElement (void *closure)
 {
+SDL_svg_context *c=closure;
 	dprintf("svg_BeginElement\n");
-	pushtmatrix((SDL_svg_context *)closure);
+	pushtmatrix(c);
+	c->minx = HUGE;
+	c->miny = HUGE;
+	c->maxx = -HUGE;
+	c->maxy = -HUGE;
 	return SVG_STATUS_SUCCESS;
 }
 
@@ -266,6 +278,7 @@ SDL_svg_context *c=closure;
 
 	if(c->numpoints && needs_path_stop(c))
 		_AddPathStop(c, 0);
+	_extremes(c, x, y);
 	_AddIPoint(c, FixCoords(c, (IPoint) {x, y}), TAG_ONPATH);
 	c->at = (IPoint) {x, y};
 
@@ -279,6 +292,7 @@ SDL_svg_context *c=closure;
 
 	dprintf("svg_LineTo (x=%5.5f, y=%5.5f)\n",x,y);
 
+	_extremes(c, x, y);
 	_AddIPoint(c, FixCoords(c, (IPoint) {x, y}), TAG_ONPATH);
 	c->at = (IPoint) {x, y};
 
@@ -299,6 +313,10 @@ IPoint p1,p2,p3;
 
 	if(!c->path || !c->numpoints)
 		return SVG_STATUS_INVALID_CALL;
+
+	_extremes(c, x1, y1);
+	_extremes(c, x2, y2);
+	_extremes(c, x3, y3);
 
 	p1 = FixCoords(c, (IPoint) {x1, y1});
 	p2 = FixCoords(c, (IPoint) {x2, y2});
@@ -325,6 +343,9 @@ IPoint p1,p2;
 
 	if(!c->path || !c->numpoints)
 		return SVG_STATUS_INVALID_CALL;
+
+	_extremes(c, x1, y1);
+	_extremes(c, x2, y2);
 
 	p1 = FixCoords(c, (IPoint) {x1, y1});
 	p2 = FixCoords(c, (IPoint) {x2, y2});
@@ -587,6 +608,8 @@ float x2,y2;
 	x2 = x1 + width_len->value;
 	y2 = y1 + height_len->value;
 
+	_extremes(c, x1, y1);
+	_extremes(c, x2, y2);
 	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y1}), TAG_ONPATH);
 	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y1}), TAG_ONPATH);
 	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y2}), TAG_ONPATH);
