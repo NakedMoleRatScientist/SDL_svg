@@ -3,6 +3,8 @@
 
 #define SVG_VERSION 110
 
+#include <svg.h>
+
 #ifdef VERBOSE
 #define dprintf(format, arg...) printf(format, ##arg)
 #else
@@ -71,6 +73,7 @@ struct SDL_svg_context {
 
 IPoint FixCoords(SDL_svg_context *c, IPoint p);
 IPoint FixSizes(SDL_svg_context *c, IPoint p);
+float ConvertLength(svg_length_t *l);
 
 void svg_matrix_init(svg_matrix_t *dst, float va, float vb, float vc,
 			float vd, float ve, float vf);

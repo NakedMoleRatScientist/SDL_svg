@@ -433,24 +433,23 @@ int alpha;
 		c->gradient_policy = paint->p.gradient->spread;
 		if (paint->p.gradient->type == SVG_GRADIENT_LINEAR)
 		{
-// need to conver from percentages as necessary
 			c->renderfunc = lineargradient;
 			c->gradient_p1 = (IPoint)
-				{ paint->p.gradient->u.linear.x1.value,
-				  paint->p.gradient->u.linear.y1.value};
+				{ ConvertLength(&paint->p.gradient->u.linear.x1),
+				  ConvertLength(&paint->p.gradient->u.linear.y1)};
 			c->gradient_p2 = (IPoint)
-				{ paint->p.gradient->u.linear.x2.value,
-				  paint->p.gradient->u.linear.y2.value};
+				{ ConvertLength(&paint->p.gradient->u.linear.x2),
+				  ConvertLength(&paint->p.gradient->u.linear.y2)};
 		} else if(paint->p.gradient->type == SVG_GRADIENT_RADIAL)
 		{
 			c->renderfunc = radialgradient;
 			c->gradient_p1 = (IPoint)
-				{ paint->p.gradient->u.radial.cx.value,
-				  paint->p.gradient->u.radial.cy.value};
+				{ ConvertLength(&paint->p.gradient->u.radial.cx),
+				  ConvertLength(&paint->p.gradient->u.radial.cy)};
 			c->gradient_p2 = (IPoint)
-				{ paint->p.gradient->u.radial.fx.value,
-				  paint->p.gradient->u.radial.fy.value};
-			c->gradient_r = paint->p.gradient->u.radial.r.value;
+				{ ConvertLength(&paint->p.gradient->u.radial.fx),
+				  ConvertLength(&paint->p.gradient->u.radial.fy)};
+			c->gradient_r = ConvertLength(&paint->p.gradient->u.radial.r);
 		} else c->renderfunc = 0;
 
 		if(paint->p.gradient->units==SVG_GRADIENT_UNITS_USER)

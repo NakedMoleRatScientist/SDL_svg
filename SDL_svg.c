@@ -3,7 +3,6 @@
 #include <math.h>
 #include "SDL_svg.h"
 #include "internals.h"
-#include <svg.h>
 
 static svg_status_t _SDL_SVG_BeginGroup (void *closure, double opacity);
 static svg_status_t _SDL_SVG_BeginElement (void *closure);
@@ -675,7 +674,7 @@ float f=1.0;
 	case SVG_LENGTH_UNIT_IN:f=90.0;break;
 	case SVG_LENGTH_UNIT_MM:f=3.543307;break;
 	case SVG_LENGTH_UNIT_PC:f=15.0;break;
-	case SVG_LENGTH_UNIT_PCT:break;
+	case SVG_LENGTH_UNIT_PCT:f=0.01;break;
 	case SVG_LENGTH_UNIT_PT:f=1.25;break;
 	case SVG_LENGTH_UNIT_PX:f=1.0;break;
 	}
