@@ -82,9 +82,13 @@ _svg_element_init (svg_element_t	*element,
     case SVG_ELEMENT_TYPE_TEXT:
 	status = _svg_text_init (&element->e.text);
 	break;
+#ifdef IMAGE_CRAP
+/* (DA) 20050220 this is insane, if you want an image it should be embedded
+in the SVG file itself somehow, not just as a reference to a file. */
     case SVG_ELEMENT_TYPE_IMAGE:
 	status = _svg_image_init (&element->e.image);
 	break;
+#endif
     case SVG_ELEMENT_TYPE_GRADIENT:
 	status = _svg_gradient_init (&element->e.gradient);
 	break;
@@ -150,9 +154,12 @@ _svg_element_init_copy (svg_element_t	*element,
     case SVG_ELEMENT_TYPE_PATTERN:
 	status = _svg_pattern_init_copy (&element->e.pattern, &other->e.pattern);
 	break;
+#ifdef IMAGE_CRAP
+/* (DA) 20050220 */
     case SVG_ELEMENT_TYPE_IMAGE:
 	status = _svg_image_init_copy (&element->e.image, &other->e.image);
 	break;
+#endif
     default:
 	status = SVGINT_STATUS_UNKNOWN_ELEMENT;
 	break;
@@ -207,9 +214,12 @@ _svg_element_deinit (svg_element_t *element)
     case SVG_ELEMENT_TYPE_PATTERN:
 	status = _svg_pattern_deinit (&element->e.pattern);
 	break;
+#ifdef IMAGE_CRAP
+/* (DA) 20050220 */
     case SVG_ELEMENT_TYPE_IMAGE:
 	status = _svg_image_deinit (&element->e.image);
 	break;
+#endif
     default:
 	status = SVGINT_STATUS_UNKNOWN_ELEMENT;
 	break;
@@ -330,9 +340,12 @@ svg_element_render (svg_element_t		*element,
 	case SVG_ELEMENT_TYPE_TEXT:
 	    status = _svg_text_render (&element->e.text, engine, closure);
 	    break;
+#ifdef IMAGE_CRAP
+/* (DA) 20050220 */
 	case SVG_ELEMENT_TYPE_IMAGE:
 	    status = _svg_image_render (&element->e.image, engine, closure);
 	    break;
+#endif
 	case SVG_ELEMENT_TYPE_DEFS:
 	    break;
 	case SVG_ELEMENT_TYPE_GRADIENT:
@@ -502,9 +515,12 @@ _svg_element_apply_attributes (svg_element_t	*element,
     case SVG_ELEMENT_TYPE_TEXT:
 	status = _svg_text_apply_attributes (&element->e.text, attributes);
 	break;
+#ifdef IMAGE_CRAP
+/* (DA) 20050220 */
     case SVG_ELEMENT_TYPE_IMAGE:
 	status = _svg_image_apply_attributes (&element->e.image, attributes);
 	break;
+#endif
     case SVG_ELEMENT_TYPE_GRADIENT:
 	status = _svg_gradient_apply_attributes (&element->e.gradient,
 						 element->doc, attributes);

@@ -6,10 +6,14 @@ CFLAGS += -I/usr/local/include/libxml2
 VPATH = ..
 LIB = libsvg.so
 
-OBJS = 	svg.o svg_ascii.o svg_image.o svg_attribute.o svg_color.o \
+OBJS = 	svg.o svg_ascii.o svg_attribute.o svg_color.o \
 	svg_element.o svg_gradient.o svg_group.o svg_length.o \
 	svg_paint.o svg_parser.o svg_pattern.o svg_path.o \
 	svg_str.o svg_style.o svg_text.o svg_transform.o
+
+#uncomment these lines below for the image capability
+#OBJS += svg_image.c
+#CFLAGS += -DIMAGE_CRAP
 
 HEADERS = svg.h svgint.h svg_ascii.h svg_version.h config.h
 

@@ -24,7 +24,7 @@ $(LIB):  $(OBJ)
 	$(CC) -shared -o $(LIB) $(OBJ)
 
 svgtest: svgtest.o $(LIB)
-	$(CC) -o $@ $^ $(LDFLAGS) -lm -lsvg -lpng -ljpeg -lxml2 -lSDL \
+	$(CC) -o $@ $^ $(LDFLAGS) -lm -lsvg -lxml2 -lSDL \
 		-lpthread -lX11 -lXext
 
 svgtest.o: svgtest.c $(DEPS)
