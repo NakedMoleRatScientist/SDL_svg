@@ -765,3 +765,8 @@ void destroy_SDL_svg_context(SDL_svg_context *c)
 	}
 	free(c);
 }
+
+int SVG_Version(void)
+{
+	return SVG_VERSION;
+}

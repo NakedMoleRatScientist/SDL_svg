@@ -1,3 +1,18 @@
+David Ashley (DA) Sun Feb  6 18:10:56 PST 2005
+
+Current version is 107. There's a new SVG_Version() function that returns
+the version.
+
+Modified the vector function v2 and got rid of all the xin, xout business,
+now the v2 function only outputs one x for every line.
+
+I looked at the SDL_gfx filledpolygon function for ideas, the algorithm looked
+like it could use a lot of optimization. For every single row of the polygon
+the function iterates over the whole list of polygon points to determine where
+that row is crossed. Lots of divides/interpolation. Also there is no mechanism
+to handle the fill rule (winding vs odd/even). It would only be odd/even.
+The filled polygon isn't anti-aliased. SDL_gfx can only anti-alias the outline
+of a polygon. I think the decision not to rely on SDL_gfx was correct.
 ----------------------------------------------------------------------------
 David Ashley (DA) Fri Jan 21 17:15:33 PST 2005
 

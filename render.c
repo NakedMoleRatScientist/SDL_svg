@@ -38,7 +38,7 @@ static void colordot(void *arg, int x, int y, unsigned long c)
 struct spanlist
 {
 	int havespan;
-	int xin, xout;
+	int x;
 	int runs[MAX_SPANS_PER_ROW*2+2];
 };
 
@@ -46,7 +46,7 @@ struct spanlist
 struct spantab
 {
 	int miny, maxy;
-	int xin, xout;
+	int x;
 	int firsty;
 	int secondy;
 	int lasty;
@@ -76,7 +76,7 @@ struct spanlist *sl;
 // call after initspantab() at start of path
 static void preparespantab(struct spantab *spantab, int x, int ys, int ye)
 {
-	spantab->xin=spantab->xout=x;
+	spantab->x=x;
 	spantab->firsty = ys;
 	spantab->lastlasty=INVALID_Y;
 	spantab->lasty=ys >=0 ? ys : INVALID_Y;
@@ -162,23 +162,22 @@ int *put, *take;
 
 	if(!sl->havespan)
 	{
-		sl->xin = spantab->xin;
-		sl->xout = spantab->xout;
+		sl->x = spantab->x;
 		sl->havespan=1;
 		return;
 	}
 	sl->havespan = 0;
 
-	minx=sl->xin;
-	if(sl->xout<minx) minx=sl->xout;
-	maxx=spantab->xin;
-	if(spantab->xout>maxx) maxx=spantab->xout;
-	if(minx > maxx) v=-1;
-	else v=1;
-	if(spantab->xin<minx) minx=spantab->xin;
-	if(spantab->xout<minx) minx=spantab->xout;
-	if(sl->xin>maxx) maxx=sl->xin;
-	if(sl->xout>maxx) maxx=sl->xout;
+	minx=sl->x;
+	maxx=spantab->x;
+	if(minx > maxx)
+	{
+		v=minx;
+		minx=maxx;
+		maxx=v;
+		v=-1;
+	} else
+		v=1;
 
 	if(spantab->lasty>spantab->firsty) v=-v;
 
@@ -205,7 +204,7 @@ static void adddot(struct spantab *spantab, int x, int y)
 	}
 	if(y==spantab->lasty)
 	{
-		spantab->xout=x;
+		spantab->x=x;
 	} else
 	{
 		if(spantab->secondy==INVALID_Y)
@@ -221,16 +220,15 @@ static void adddot(struct spantab *spantab, int x, int y)
 			else
 			{
 				int t;
-				t=spantab->xout;
-				spantab->xout = spantab->xin;
+				t=spantab->x;
 				newcrossing(spantab);
-				spantab->xin = spantab->xout = t;
+				spantab->x = t;
 				newcrossing(spantab);
 			}
 		}
 		spantab->lastlasty=spantab->lasty;
 		spantab->lasty=y;
-		spantab->xin=spantab->xout=x;
+		spantab->x=x;
 	}
 }
 
@@ -243,51 +241,24 @@ static void closelast(struct spantab *spantab, int x, int y)
 	}
 }
 
-static void v2(struct spantab *spantab, int sx,int sy,int dx,int dy)
+static void v2(struct spantab *spantab, int x1,int y1,int x2,int y2)
 {
-int diffx,diffy;
-int stepx,stepy;
-float val,delta;
-
-	stepx=stepy=0;
-	diffx=dx-sx;
-	if(diffx<0) {diffx=-diffx;stepx=-1;}
-	else if(diffx>0) stepx=1;
-	diffy=dy-sy;
-	if(diffy<0) {diffy=-diffy;stepy=-1;}
-	else if(diffy>0) stepy=1;
-
-	adddot(spantab, sx, sy);
-
-	if(diffx>diffy)
+#define FRAC 16
+int yn;
+int dx,dy;
+	yn=y2-y1;
+	if(yn<0) yn=-yn;
+	if(!yn) return;
+	adddot(spantab, x1, y1);
+	dy=y2>y1 ? 1 : (y2<y1 ? -1 : 0);
+	dx = ((x2-x1)<<FRAC) / (yn+1);
+	x1<<=FRAC;
+	while(yn--)
 	{
-		val=sy;
-		delta=(dy-val)/diffx;
-		val+=0.5;
-		while(diffx--)
-		{
-			sx+=stepx;
-			val+=delta;
-			adddot(spantab, sx,(int)val);
-		}
-	} else if(diffx<diffy)
-	{
-		val=sx;
-		delta=(dx-val)/diffy;
-		val+=0.5;
-		while(diffy--)
-		{
-			sy+=stepy;
-			val+=delta;
-			adddot(spantab, (int)val,sy);
-		}
-	} else
-		while(diffx--)
-		{
-			sx+=stepx;
-			sy+=stepy;
-			adddot(spantab, sx,sy);
-		}
+		y1+=dy;
+		x1+=dx;
+		adddot(spantab, x1>>FRAC, y1);
+	}
 }
 
 static void generatespans(struct spantab *spantab,

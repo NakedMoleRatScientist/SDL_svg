@@ -17,6 +17,6 @@ void destroy_SDL_svg_context(SDL_svg_context *c);
 
 float SVG_Width(SDL_svg_context *c);
 float SVG_Height(SDL_svg_context *c);
-
+int SVG_Version(void);
 
 #endif
