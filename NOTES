@@ -1,4 +1,23 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Fri Feb 18 17:49:08 PST 2005
+
+Current version is 110.
+
+Added flags that can be set on the SDL_svg_context, flag SDL_SVG_FLAG_COMPOSITE
+which means render into the target surface such that the surface can then
+be rendered onto another surface, with appropriate alpha + color values.
+
+SO: SVG rendering with SDL_SVG_FLAG_COMPOSITE --->  Surface --> Other surface
+will be identical to
+    SVG rendering without SDL_SVG_FLAG_COMPOSITE            --> Other surface
+
+Without this the alpha and color values won't be correct. The whole point
+is to make a handly SDL_Surface that can be used as a quick element, like
+a widget or icon or something, to be drawn onto the screen.
+
+Auto detects bit depth, 16 and 32 bits are supported. The compositing 16
+bit colordot hasn't been written yet.
+----------------------------------------------------------------------------
 David Ashley (DA) Thu Feb 17 17:52:46 PST 2005
 
 Current version is 109.
