@@ -1,0 +1,178 @@
+----------------------------------------------------------------------------
+David Ashley (DA) Sat Jan 15 21:36:15 PST 2005
+
+Current version is 101, however this isn't stored anywhere.
+
+I improved the spanning mechanism. My previous method didn't handle a path
+composed of multiple separate paths. The letter 'O' would be a case in point.
+Now a MoveTo will add a path stop, as well as an explicit closepath or
+the renderpath.
+
+The fix meant traversing all paths and building up the spantab, before doing
+any rendering at all. I had been doing a path, rendering it, doing a path,
+rendering it...that isn't the intent if the subpaths are in the same element.
+
+This fixes the problem with the bored_dog_01.svg.
+----------------------------------------------------------------------------
+David Ashley (DA) Sun Jan  9 11:26:19 PST 2005
+
+Current version is 100, however this isn't stored anywhere.
+
+I pulled libsvg into the project for safekeeping, and modified the Makefiles
+to work on standard linux. They'll need tweaking. An autoconf would be nice
+but I can't be bothered. Project depends on libxml2, libpng, libjpeg, zlib
+and SDL.
+
+I pulled some svg test files off of openclipart.org and stuck them in the
+svg directory.
+
+To build go into the SDL_svg/libsvg directory and do
+make all
+then
+make install
+
+Then go into the top directory SDL_svg and do
+make all
+then
+make install
+
+The test program SDL_svg/obj/svgtest can be used to pop up a window and
+show an svg program.
+
+The bored_dog_01.svg shows the deficiencies in my spanning algorithm. I haven't
+dug into it but it's probably the multiple paths as part of the same element.
+With my algorithm the "sense" of the spans will get confused for multiple
+separate paths. It's probably fixable.
+----------------------------------------------------------------------------
+David Ashley (DA) 20041228(2)
+
+I implemented the fill_rule business. However I realize my implementation
+won't work for objects composed of multiple paths, because the path
+won't be continuous. Each span being left-to-right vs right-to-left is
+only consistent along a single path. In fact I'm not even sure of that...
+
+----------------------------------------------------------------------------
+David Ashley (DA) 20041228
+
+Regarding transforms it's clear the rendering engine has to maintain
+a matrix stack. libsvg is nice enough to send the transform matrix down
+before sending any graphics primitives, that surprised me. The order
+isn't necessarily the same in the xml file - a path can be followed by
+a transform matrix. If libsvg were true to form it would put the burden
+of storing up the path on the rendering engine, just like everything else.
+
+Another burden on the rendering engine: The svg_length_t has a length and
+a units value. So each rendering engine needs to know how to convert units.
+What a pain. The rendering primitives are composed of mixtures of
+svg_length_t's and double's. Why does MoveTo or LineTo take 2 doubles,
+but a rectangle takes svg_length_t's?
+
+My implementation of the spans has lots of voodoo. The thing works though.
+The general theory is to define the shape to be painted (solid) you just
+step along the path in the same direction, returning to your starting point.
+The system keeps track of every time a row is entered and exited. Pairs
+of enter/exit, enter/exit define a span, and it is either left to right or
+right to left depending on the coordinates. The direction assists in
+determining the winding number of the spans. There is special case code
+to handle extrema in Y, the bottom or top point would end up just being
+a single enter/exit, but it needs to be treated as 2 enter/exits.
+
+After the path has been followed and we know all the crossings for each
+row, we convert each row to run lengths. We start with a huge run
+length of 0. Every pair of enter/exits defines a span, and the winding number
++1 or -1 is determined whether the span is left to right or right to left.
+Each span modifies the table of run lengths, for example:
+
+----------------------->       this is a +1 span
+      <---------               this is a -1 span
+becomes
+111111000000000011111111
+or
+6 (1)
+10 (0)
+8 (1)
+
+Now depending on the winding rule the check can be made to render all
+strips that are non-zero (NONZERO) or odd (EVEN_ODD). Currently the code
+is in generatespans and it is hardcoded to the EVEN_ODD, it's a trivial
+fix to support the winding rule and it would have been easier than writing
+out the last sentence almost.
+
+One optimization that could be done is instead of storing up all the
+line crossings for each row in the spantab, as each pair of enter/exit
+crossings come in, we build up the run length table right there. We'd
+only need to store 2 xin/xout pairs and a count of spans. As it is
+we've got 2 tables that can grow to indefinite size for each row of the
+bitmap. We can reduce that to just one. Actually in the implementation
+the final rendering pass builds up the run lengths for each row, renders
+the pixels, then throws the information away. I think it would be better
+to build up the run lengths as possible.
+
+Anti-aliasing isn't attempted. I think a first step towards this would be
+using floats instead of ints for the xin/xout and run lengths. Then the
+fractional part of the start and end of the run length would determine the
+alpha for the starting and ending pixels on that span. This would allow
+for anti-aliasing in X. Y I have no clue how to handle with this
+architecture. Beggers can't be choosers.
+
+The libsvg probably ought to just be copied directly into this source
+tree, in case they change it and break something. It's pretty small anyway.
+It depends on libxml2 and that's probably pretty stable.
+
+The current version has a quicky hack to handle the Rect object. It
+handles the gradients ok but not curved corners. It hasn't been tested much.
+Gradients seem to be off somehow, probably related to BBOX coordinates,
+the control points for the linear gradient are probably not scaled right.
+Or maybe I'm supposed to scale each user coordinate in X and Y before
+applying the gradients. There is some evidence in this, if you take a
+radial gradient my rendering always shows a perfect circle, but it is
+supposed to sometimes be an oval.
+
+Regarding getting rid of the SDL_gfx dependency--depending on that library
+was going down a wrong path. Sure it handles one simple case -- anti
+aliased solid colored polygon. What about gradients? Patterns fills?
+It's a dead end. So fully implementing SVG would require modifying
+SDL_gfx to add gradient functionality. So now you've got some independent
+project that must be modified in order for SDL_svg to function. Great.
+That's a recipe for disaster. Instead it would be more practical to pull
+in rendering code from SDL_gfx and use that as a reference. I opted to just
+start from scratch
+
+CurveTo: This is a real hack. Currently only qubic beziers are handled and
+the curve is rendered by just taking 16 steps along the curve, drawing
+line segments. There are better recursive algorithms but I can't be
+bothered to clean this up. It works well enough for our application.
+----------------------------------------------------------------------------
+David Ashley (DA) 20041221
+
+Multiple paths can be sent down by libsvg before the RenderPath gets called.
+So it's N * ( MoveTo, N2 * ( CurveTo | LineTo ), ClosePath ), RenderPath
+
+However sometimes you don't get a ClosePath at all before RenderPath,
+so RenderPath has to close it automatically.
+----
+The whole libsvg architecture is suspect. SVG objects have a fill as well
+as an outline, each with its own characteristics. This implementation
+currently only deals with the fill of the body of the object, and makes
+no attempt to draw the outline. libsvg could have been more intelligent
+so it handles the outline itself, it can translate the outline into a
+collection of MoveTo, LineTo + CurveTo. That way the rendering engine would
+only have to deal with the problem of filling a shape with a gradient.
+
+The burden is illustrated if you set the stroke width of an object to
+something thicker than a pixel. Suddenly the stroke itself becomes something
+of large area, and the renderer now has to deal with all the issues of
+following the path but some distance inside and outside of it to make it
+thicker, and all the problems of end cap, joins and more. This could be
+handled in the libsvg itself. All different rendering engines now need to
+handle the problem independently.
+
+Another issue are the primitives such as ellipse or rectangle. There
+doesn't need to be a separate handler function for these. The rectangle can
+be done by libsvg sending down a MoveTo then 3 LineTo's. The ellipse can
+be done with a MoveTo and several CurveTo's to approximate the ellipse.
+This is another case where the rendering engine has to worry about stuff
+that it shouldn't have to.
+
+All libsvg seems to get you is parsing the SVG XML file.
+----------------------------------------------------------------------------

@@ -1,0 +1,59 @@
+David Ashley Sun Jan  9 11:33:33 PST 2005
+dash@xdr.com
+
+This code was taken from the SDL_svg project hosted by sourceforge:
+http://sourceforge.net/projects/sdlsvg/
+That project was created by Enzo <enzogupi@aliceposta.it>
+I also pulled code from the cairo project (specifically the libsvg tree).
+Putting here means there's at least a known good copy that works properly with
+SDL_svg. As that project evolves the embedded copy here could be updated.
+
+Enzo's SDL_svg project had what I consider to be fundamental flaws in its
+architecture. I didn't like the dependency on SDL_gfx for drawing primitives,
+I think SDL_gfx probably doesn't support enough options to handle all SVG's
+requirements. I also didn't like how the closure argument to all the calls
+isn't used as it should, instead state is stored in global variables and
+tables. For performance the tactic of malloc/copy/free on every single
+new LineTo point was really...questionable. However probably a lot of people
+would find fault in my own code here.
+
+I liked the approach of leveraging the libsvg out of cairo, to parse the xml
+and handle callbacks. However I think the division point of what libsvg
+does and what the rendering engine has to do puts too much burden on the
+rendering engine.
+
+I think a better approach might be a middle layer that would go between libsvg
+and the rendering engine. This middle layer would translate all CurveTo's to
+LineTo's, it would handle the bezier curve stuff. All primitives like
+rectangles and ovals and circles would get translated into CurveTo's and
+LineTo's. All the rendering engine would have to handle is the working out
+of what is the actual set of spans to render, then for each span figure out
+the value of each pixel based on the gradient + paint that is being applied.
+
+The path itself would be handled by the middle layer also, it would just
+call the renderer once for the solid part of the element, then a second time
+to stroke the path with its own path + dotted lines + whatnot.
+
+All of this is just too much rework for every single rendering engine.
+Even working out the spans could be done in the middle layer. So in the
+bottom layer the renderer would just have to deal with the pixel operations on
+the frame buffer.
+
+This code development was sponsored by NXTV, Inc. I'm an employee of NXTV.
+We took it as far as was necessary for our requirements. It's further than
+it was when Enzo left it, and the foundation is there for building out a lot
+more functionality. However there is still a lot to do, and not everything
+that I've implemented is 100% correct.
+
+I don't want to get stuck maintaining this. Maybe Enzo will pull this into
+his sourceforge project and other people will push it further from there.
+An SDL implementation of SVG would be extremely useful in a lot of projects
+and games. An artist can build an image with inkscape
+http://www.inkscape.org/
+which is a very impressive SVG editor. It's got a few quirks but overall is
+a fantastic program, very useful. One big complaint I have is the little
+dialogue boxes that pop up don't have dragbars (at least in my window manager)
+nor do they have a close icon.
+
+Anyway read the NOTES file for some comments on architecture + probems.
+Read the TODO file for a list of things I think need doing on this project.
