@@ -34,6 +34,14 @@ static void colordot(void *arg, int x, int y, unsigned long c)
 	}
 }
 
+#define FACTOR 16
+static inline void acolordot(SDL_Surface *s, int x, int y, unsigned long c, int f2)
+{
+unsigned long a;
+	a=f2 * ((c&0xff000000)/FACTOR);
+	colordot(s, x, y, (a&0xff000000) | (c&0xffffff));
+}
+
 #define MAX_SPANS_PER_ROW 32
 struct spanlist
 {
@@ -232,18 +240,9 @@ static void adddot(struct spantab *spantab, int x, int y)
 	}
 }
 
-static void closelast(struct spantab *spantab, int x, int y)
-{
-	if(spantab->secondy==spantab->lastlasty)
-	{
-//		if(spantab->lasty<0 || spantab->lasty>=MAXLINES) return;
-		newcrossing(spantab);
-	}
-}
-
 static void v2(struct spantab *spantab, int x1,int y1,int x2,int y2)
 {
-#define FRAC 16
+#define FRAC 12
 int yn;
 int dx,dy;
 	yn=y2-y1;
@@ -274,16 +273,18 @@ int n2;
 		if((int) points[0].y != (int) points[n2].y)
 			break;
 	}
-	preparespantab(spantab, (int) points[0].x, (int) points[0].y, (int)points[n2].y);
+	preparespantab(spantab, (int) (points[0].x*FACTOR), (int) points[0].y,
+		(int)points[n2].y);
 	for(i=0;i<num;++i)
 	{
 		j=i+1;
 		if(j==num)
 			j=0;
-		v2(spantab, (int)points[i].x, (int) points[i].y,
-			(int) points[j].x, (int) points[j].y);
+		v2(spantab, (int)(points[i].x*FACTOR), (int) points[i].y,
+			(int) (points[j].x*FACTOR), (int) points[j].y);
 	}
-	closelast(spantab, points[num-1].x, points[num-1].y);
+	if(spantab->secondy==spantab->lastlasty)
+		newcrossing(spantab);
 }
 static void renderspans(struct spantab *spantab,
 		void renderfunc(SDL_svg_context *arg, int x, int y, int w),
@@ -316,7 +317,7 @@ int minx;
 
 
 
-static void lineargradient(SDL_svg_context *c, int x, int y, int w)
+static void lineargradient(SDL_svg_context *c, int ox, int y, int w)
 {
 float cx,cy;
 float vx,vy;
@@ -324,7 +325,14 @@ float f;
 float dx,dy,dyvy;
 int dp;
 int policy;
+int f2;
+int ex,exf;
+int x;
 
+	ex=ox+w;
+	exf=ex/FACTOR;
+	f2 = FACTOR - (ox&(FACTOR-1));
+	x=ox/FACTOR;
 	policy = c->gradient_policy;
 
 
@@ -339,7 +347,7 @@ int policy;
 	dy=y-cy;
 	dyvy = dy*vy;
 
-	while(w-- > 0)
+	while(x<=exf)
 	{
 		dx = x - cx;
 		dp=(NUM_GRADIENT_COLORS-1) *(dx*vx + dyvy)/f;
@@ -356,7 +364,22 @@ int policy;
 				dp^=(NUM_GRADIENT_COLORS-1);
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
-		colordot(c->surface, x++, y, c->gradient_colors[dp]);
+		if(f2)
+		{
+			acolordot(c->surface, x++, y, c->gradient_colors[dp], f2);
+			f2=0;
+		} else
+		{
+			if(x<exf)
+				colordot(c->surface, x++, y, c->gradient_colors[dp]);
+			else
+			{
+				w = ex & (FACTOR-1);
+				if(w)
+			 		acolordot(c->surface, x, y, c->gradient_colors[dp], w);
+				break;
+			}
+		}
 	}
 }
 
@@ -381,7 +404,7 @@ to the circle P is, 0 <= fraction <= 1.0.
 (DA) 20041220
 */
 
-static void radialgradient(SDL_svg_context *c, int x, int y, int w)
+static void radialgradient(SDL_svg_context *c, int ox, int y, int w)
 {
 int policy;
 float va,vb,vc;
@@ -392,7 +415,14 @@ int dp;
 float cx,cy;
 float r,r2;
 float dy2,y1cdy;
+int f2;
+int ex,exf;
+int x;
 
+	ex=ox+w;
+	exf=ex/FACTOR;
+	f2 = FACTOR - (ox&(FACTOR-1));
+	x=ox/FACTOR;
 	policy = c->gradient_policy;
 	cx=c->gradient_p1.x;
 	cy=c->gradient_p1.y;
@@ -405,7 +435,7 @@ float dy2,y1cdy;
 	dy=y - c->gradient_p2.y;
 	dy2=dy * dy;
 	y1cdy=y1c * dy;
-	for(;w-->0;++x)
+	while(x<=exf)
 	{
 		dx=x - c->gradient_p2.x;
 		va=dx*dx+dy2;
@@ -429,15 +459,48 @@ float dy2,y1cdy;
 				dp^=(NUM_GRADIENT_COLORS-1);
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
-		colordot(c->surface, x, y, c->gradient_colors[dp]);
+		if(f2)
+		{
+			acolordot(c->surface, x++, y, c->gradient_colors[dp], f2);
+			f2=0;
+		} else
+		{
+			if(x<exf)
+				colordot(c->surface, x++, y, c->gradient_colors[dp]);
+			else
+			{
+				w = ex & (FACTOR-1);
+				if(w)
+			 		acolordot(c->surface, x, y, c->gradient_colors[dp], w);
+				break;
+			}
+		}
 	}
 
 }
 
-static void solidstrip(SDL_svg_context *c, int x, int y, int w)
+static void solidstrip(SDL_svg_context *c, int ox, int y, int w)
 {
-	while(w-->0)
+int f2;
+int x;
+int ex,exf;
+	ex=ox + w;
+	exf = ex/FACTOR;
+	f2 = FACTOR - (ox&(FACTOR-1));
+	x=ox/FACTOR;
+
+	while(x < exf)
+	{
+		if(f2)
+		{
+			acolordot(c->surface, x++, y, c->solidcolor, f2);
+			f2=0;
+		}
 		colordot(c->surface, x++, y, c->solidcolor);
+	}
+	w = ex & (FACTOR-1);
+	if(w)
+		acolordot(c->surface, x, y, c->solidcolor, w);
 }
 
 void solid(SDL_svg_context *c)

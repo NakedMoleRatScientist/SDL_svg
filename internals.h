@@ -1,7 +1,7 @@
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
-#define SVG_VERSION 107
+#define SVG_VERSION 108
 
 #ifdef VERBOSE
 #define dprintf(format, arg...) printf(format, ##arg)

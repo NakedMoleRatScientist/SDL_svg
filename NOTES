@@ -1,3 +1,11 @@
+----------------------------------------------------------------------------
+David Ashley (DA) Mon Feb  7 19:05:40 PST 2005
+
+Current version is 108.
+
+Added some anti-aliasing on the leading and trailing pixels of each span.
+This helps vertical tending lines but not horizontal tending lines.
+----------------------------------------------------------------------------
 David Ashley (DA) Sun Feb  6 18:10:56 PST 2005
 
 Current version is 107. There's a new SVG_Version() function that returns
