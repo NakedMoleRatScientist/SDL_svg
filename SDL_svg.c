@@ -2,6 +2,7 @@
 #include <string.h>
 #include <math.h>
 #include "SDL_svg.h"
+#include <svg.h>
 
 static svg_status_t _SDL_SVG_BeginGroup (void *closure, double opacity);
 static svg_status_t _SDL_SVG_BeginElement (void *closure);
@@ -377,7 +378,7 @@ SDL_svg_context *c=closure;
 
 	dprintf("svg_SetFillPaint\n");
 
-	c->paint = paint;
+	c->paint = (void *)paint;
 
 	return SVG_STATUS_SUCCESS;
 }
@@ -671,7 +672,7 @@ svg_length_t Height;
 SDL_svg_context *Source;
 
 	Source = create_SDL_svg_context();
-	svg_create (&(Source->SVG));
+	svg_create ((svg_t **)&(Source->SVG));
 	svg_parse (Source->SVG,FileName);
 	svg_get_size (Source->SVG,&Width,&Height);
 	Source->w = ConvertLength(&Width);

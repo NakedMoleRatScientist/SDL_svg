@@ -2,7 +2,6 @@
 #define SDL_SVG_H
 
 #include "SDL.h"
-#include "svg.h"
 
 #ifdef VERBOSE
 #define dprintf(format, arg...) printf(format, ##arg)
@@ -36,7 +35,8 @@ typedef struct _SDL_svg_context {
 	int *pathstops; // the pathstops, each are which IPoint at path to stop
 	IPoint at;
 	double FillOpacity;
-	const svg_paint_t *paint; // Big question who deallocates this
+// svg_paint_t
+	void *paint; // Big question who deallocates this
 	IPoint gradient_p1; // for radial, the center point
 	IPoint gradient_p2; // for radial, the focus point
 	float gradient_r;
@@ -45,13 +45,15 @@ typedef struct _SDL_svg_context {
 	svg_matrix_t tmatrixstack[MATRIXSTACKDEPTH];
 	unsigned long gradient_colors[NUM_GRADIENT_COLORS];
 	unsigned long solidcolor;
-	svg_fill_rule_t fill_rule;
+// svg_fill_rule_t
+	int fill_rule;
 
 // Stuff from the SDL_Image struct
 	float w,h;
 	double OffsetX,OffsetY;
 	double ScaleX,ScaleY;
-	svg_t* SVG;
+//svg_t *
+	void *SVG;
 	int TargetOffsetX;
 	int TargetOffsetY;
 

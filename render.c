@@ -1,6 +1,7 @@
 #include <SDL.h>
 #include "SDL_svg.h"
 #include <math.h>
+#include <svg.h>
 
 static unsigned long maprgb(SDL_Surface *thescreen, int r,int g,int b)
 {
@@ -474,6 +475,7 @@ IPoint *path;
 int n;
 int startnum;
 struct spantab spans;
+svg_paint_t *paint;
 
 	path = c->path;
 
@@ -488,12 +490,13 @@ struct spantab spans;
 		if(ip->y>maxy) maxy=ip->y;
 	}
 
+	paint = c->paint;
 	renderfunc = solidstrip; // fall back on this
-	if(c->paint->type != SVG_PAINT_TYPE_GRADIENT)
+	if(paint->type != SVG_PAINT_TYPE_GRADIENT)
 	{
 		const svg_color_t *rgb;
 		int alpha;
-		rgb = &c->paint->p.color;
+		rgb = &paint->p.color;
 		alpha = 255.0 * c->FillOpacity;
 		c->solidcolor = maprgb(c->surface,
 			svg_color_get_red(rgb),
@@ -503,7 +506,7 @@ struct spantab spans;
 
 	} else
 	{
-		colorstops = c->paint->p.gradient->num_stops;
+		colorstops = paint->p.gradient->num_stops;
 		for(i=0;i<colorstops-1;++i)
 		{
 			int c1,c2;
@@ -514,14 +517,14 @@ struct spantab spans;
 			c1=NUM_GRADIENT_COLORS*i/(colorstops-1);
 			c2=NUM_GRADIENT_COLORS*(i+1)/(colorstops-1);
 
-			t=c->paint->p.gradient->stops[i].color.rgb;
-			a1=255.0 * c->paint->p.gradient->stops[i].opacity;
+			t=paint->p.gradient->stops[i].color.rgb;
+			a1=255.0 * paint->p.gradient->stops[i].opacity;
 			r1 = (t>>16) & 255;
 			g1 = (t>>8) & 255;
 			b1 = t & 255;
 
-			t=c->paint->p.gradient->stops[i+1].color.rgb;
-			a2=255.0 * c->paint->p.gradient->stops[i+1].opacity;
+			t=paint->p.gradient->stops[i+1].color.rgb;
+			a2=255.0 * paint->p.gradient->stops[i+1].opacity;
 			r2 = (t>>16) & 255;
 			g2 = (t>>8) & 255;
 			b2 = t & 255;
@@ -542,29 +545,29 @@ struct spantab spans;
 			}
 		}
 
-		c->gradient_policy = c->paint->p.gradient->spread;
-		if (c->paint->p.gradient->type == SVG_GRADIENT_LINEAR)
+		c->gradient_policy = paint->p.gradient->spread;
+		if (paint->p.gradient->type == SVG_GRADIENT_LINEAR)
 		{
 			renderfunc = lineargradient;
 			c->gradient_p1 = (IPoint)
-				{ c->paint->p.gradient->u.linear.x1.value,
-				  c->paint->p.gradient->u.linear.y1.value};
+				{ paint->p.gradient->u.linear.x1.value,
+				  paint->p.gradient->u.linear.y1.value};
 			c->gradient_p2 = (IPoint)
-				{ c->paint->p.gradient->u.linear.x2.value,
-				  c->paint->p.gradient->u.linear.y2.value};
-		} else if(c->paint->p.gradient->type == SVG_GRADIENT_RADIAL)
+				{ paint->p.gradient->u.linear.x2.value,
+				  paint->p.gradient->u.linear.y2.value};
+		} else if(paint->p.gradient->type == SVG_GRADIENT_RADIAL)
 		{
 			renderfunc = radialgradient;
 			c->gradient_p1 = (IPoint)
-				{ c->paint->p.gradient->u.radial.cx.value,
-				  c->paint->p.gradient->u.radial.cy.value};
+				{ paint->p.gradient->u.radial.cx.value,
+				  paint->p.gradient->u.radial.cy.value};
 			c->gradient_p2 = (IPoint)
-				{ c->paint->p.gradient->u.radial.fx.value,
-				  c->paint->p.gradient->u.radial.fy.value};
-			c->gradient_r = c->paint->p.gradient->u.radial.r.value;
+				{ paint->p.gradient->u.radial.fx.value,
+				  paint->p.gradient->u.radial.fy.value};
+			c->gradient_r = paint->p.gradient->u.radial.r.value;
 		}
 
-		if(c->paint->p.gradient->units==SVG_GRADIENT_UNITS_USER)
+		if(paint->p.gradient->units==SVG_GRADIENT_UNITS_USER)
 		{
 			c->gradient_p1 = FixCoords(c, c->gradient_p1);
 			c->gradient_p2 = FixCoords(c, c->gradient_p2);
