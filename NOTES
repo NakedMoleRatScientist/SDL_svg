@@ -1,4 +1,8 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Wed Jan 19 21:18:32 PST 2005
+
+Improved y clipping. There was a dropout problem on the top row.
+----------------------------------------------------------------------------
 David Ashley (DA) Sun Jan 16 20:29:38 PST 2005
 
 Current version is 105, however this isn't stored anywhere.

@@ -71,14 +71,16 @@ struct spanlist *sl;
 	spantab->maxy=-0x7fffffff;
 }
 
+#define INVALID_Y -888888
+
 // call after initspantab() at start of path
 static void preparespantab(struct spantab *spantab, int x, int ys, int ye)
 {
 	spantab->xin=spantab->xout=x;
 	spantab->firsty = ys;
-	spantab->lastlasty=-1;
-	spantab->lasty=ys >=0 ? ys : -1;
-	spantab->secondy=-1;
+	spantab->lastlasty=INVALID_Y;
+	spantab->lasty=ys >=0 ? ys : INVALID_Y;
+	spantab->secondy=INVALID_Y;
 }
 
 static void mergespans(struct spantab *spantab, int *put, int *take,
@@ -155,6 +157,7 @@ int runs[MAX_SPANS_PER_ROW*2+2];
 int minx, maxx;
 int *put, *take;
 
+	if(spantab->lasty<0 || spantab->lasty>=MAXLINES) return;
 	sl=spantab->spanlists + spantab->lasty;
 
 	if(!sl->havespan)
@@ -195,21 +198,23 @@ int *put, *take;
 
 static void adddot(struct spantab *spantab, int x, int y)
 {
-	if(y<0 || y>=MAXLINES) return;
-	if(y<spantab->miny) spantab->miny=y;
-	if(y>spantab->maxy) spantab->maxy=y;
+	if(y>=0 && y<=MAXLINES)
+	{
+		if(y<spantab->miny) spantab->miny=y;
+		if(y>spantab->maxy) spantab->maxy=y;
+	}
 	if(y==spantab->lasty)
 	{
 		spantab->xout=x;
 	} else
 	{
-		if(spantab->secondy<0)
+		if(spantab->secondy==INVALID_Y)
 		{
 			spantab->secondy=y;
 			if(spantab->secondy > spantab->firsty)
 				--spantab->firsty;
 		}
-		if(spantab->lasty>=0)
+		if(spantab->lasty!=INVALID_Y)
 		{
 			if(y!=spantab->lastlasty)
 				newcrossing(spantab);
@@ -233,7 +238,7 @@ static void closelast(struct spantab *spantab, int x, int y)
 {
 	if(spantab->secondy==spantab->lastlasty)
 	{
-		if(spantab->lasty<0 || spantab->lasty>=MAXLINES) return;
+//		if(spantab->lasty<0 || spantab->lasty>=MAXLINES) return;
 		newcrossing(spantab);
 	}
 }
