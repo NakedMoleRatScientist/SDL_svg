@@ -2,12 +2,12 @@
 #include "SDL_svg.h"
 #include <math.h>
 
-unsigned long maprgb(SDL_Surface *thescreen, int r,int g,int b)
+static unsigned long maprgb(SDL_Surface *thescreen, int r,int g,int b)
 {
 	return SDL_MapRGB(thescreen->format,r,g,b);
 }
 
-void colordot(void *arg, int x, int y, unsigned long c)
+static void colordot(void *arg, int x, int y, unsigned long c)
 {
 	if(x<0 || y<0 ||
 		x>=((SDL_Surface *)arg)->w ||
@@ -33,65 +33,12 @@ void colordot(void *arg, int x, int y, unsigned long c)
 	}
 }
 
-void vector(void (*func)(void *arg, int x, int y, unsigned long c), void *arg,
-	int sx,int sy,int dx,int dy,int c)
-{
-int diffx,diffy;
-int stepx,stepy;
-float val,delta;
-
-//	dprintf("vector %d,%d to %d,%d\n", sx, sy, dx, dy);
-	stepx=stepy=0;
-	diffx=dx-sx;
-	if(diffx<0) {diffx=-diffx;stepx=-1;}
-	else if(diffx>0) stepx=1;
-	diffy=dy-sy;
-	if(diffy<0) {diffy=-diffy;stepy=-1;}
-	else if(diffy>0) stepy=1;
-
-	func(arg, sx,sy,c);
-
-	if(diffx>diffy)
-	{
-		val=sy;
-		delta=(dy-val)/diffx;
-		val+=0.5;
-		while(diffx--)
-		{
-			sx+=stepx;
-			val+=delta;
-			func(arg, sx,(int)val,c);
-		}
-	} else if(diffx<diffy)
-	{
-		val=sx;
-		delta=(dx-val)/diffy;
-		val+=0.5;
-		while(diffy--)
-		{
-			sy+=stepy;
-			val+=delta;
-			func(arg, (int)val,sy,c);
-		}
-	} else
-		while(diffx--)
-		{
-			sx+=stepx;
-			sy+=stepy;
-			func(arg, sx,sy,c);
-		}
-}
-
-struct span
-{
-	int xin;
-	int xout;
-};
-
+#define MAX_SPANS_PER_ROW 32
 struct spanlist
 {
-	int numspans;
-	struct span spans[64];
+	int havespan;
+	int xin, xout;
+	int runs[MAX_SPANS_PER_ROW*2+2];
 };
 
 #define MAXLINES 2048
@@ -99,125 +46,41 @@ struct spantab
 {
 	int miny, maxy;
 	int xin, xout;
+	int firsty;
 	int secondy;
 	int lasty;
 	int lastlasty;
 	struct spanlist spanlists[MAXLINES];
 };
 
-void initspantab(struct spantab *spantab)
+static void initspantab(struct spantab *spantab)
 {
 int i;
-	spantab->miny=0;
-	spantab->maxy=MAXLINES-1;
-	for(i=spantab->miny;i<=spantab->maxy;++i)
-		spantab->spanlists[i].numspans=0;
+struct spanlist *sl;
+
+	for(i=0;i<MAXLINES;++i)
+	{
+		sl=spantab->spanlists+i;
+		sl->havespan=0;
+		sl->runs[0]=1000000;
+		sl->runs[1]=0;
+		sl->runs[2]=0;
+	}
 	spantab->miny=0x7fffffff;
 	spantab->maxy=-0x7fffffff;
 }
 
-// call after initspantab()
-void preparespantab(struct spantab *spantab, int x, int ys, int ye)
+// call after initspantab() at start of path
+static void preparespantab(struct spantab *spantab, int x, int ys, int ye)
 {
 	spantab->xin=spantab->xout=x;
+	spantab->firsty = ys;
 	spantab->lastlasty=-1;
 	spantab->lasty=ys >=0 ? ys : -1;
 	spantab->secondy=-1;
 }
 
-void adddot(struct spantab *spantab, int x, int y)
-{
-struct spanlist *sl;
-
-	if(y<0 || y>=MAXLINES) return;
-	if(y<spantab->miny) spantab->miny=y;
-	if(y>spantab->maxy) spantab->maxy=y;
-	if(y==spantab->lasty)
-	{
-		spantab->xout=x;
-	} else
-	{
-		if(spantab->secondy<0) spantab->secondy=y;
-		if(spantab->lasty>=0)
-		{
-			sl = spantab->spanlists+spantab->lasty;
-			sl->spans[sl->numspans].xin = spantab->xin;
-			sl->spans[sl->numspans].xout = spantab->xout;
-			++sl->numspans; // WARNING bounds check!!!!!!
-			if(y==spantab->lastlasty)
-			{
-				sl->spans[sl->numspans].xin = spantab->xin;
-				sl->spans[sl->numspans].xout = spantab->xout;
-				++sl->numspans; // WARNING bounds check!!!!!!
-			}
-		}
-			spantab->lastlasty=spantab->lasty;
-			spantab->lasty=y;
-			spantab->xin=spantab->xout=x;
-	}
-}
-
-void closelast(struct spantab *spantab, int x, int y)
-{
-struct spanlist *sl;
-	if(spantab->secondy==spantab->lastlasty)
-	{
-		if(spantab->lasty<0 || spantab->lasty>=MAXLINES) return;
-		sl=spantab->spanlists + spantab->lasty;
-		sl->spans[sl->numspans].xin = spantab->xin;
-		sl->spans[sl->numspans].xout = spantab->xout;
-		++sl->numspans; // WARNING bounds check!!!!!!
-	}
-}
-
-void v2(struct spantab *spantab, int sx,int sy,int dx,int dy)
-{
-int diffx,diffy;
-int stepx,stepy;
-float val,delta;
-
-	stepx=stepy=0;
-	diffx=dx-sx;
-	if(diffx<0) {diffx=-diffx;stepx=-1;}
-	else if(diffx>0) stepx=1;
-	diffy=dy-sy;
-	if(diffy<0) {diffy=-diffy;stepy=-1;}
-	else if(diffy>0) stepy=1;
-
-	adddot(spantab, sx, sy);
-
-	if(diffx>diffy)
-	{
-		val=sy;
-		delta=(dy-val)/diffx;
-		val+=0.5;
-		while(diffx--)
-		{
-			sx+=stepx;
-			val+=delta;
-			adddot(spantab, sx,(int)val);
-		}
-	} else if(diffx<diffy)
-	{
-		val=sx;
-		delta=(dx-val)/diffy;
-		val+=0.5;
-		while(diffy--)
-		{
-			sy+=stepy;
-			val+=delta;
-			adddot(spantab, (int)val,sy);
-		}
-	} else
-		while(diffx--)
-		{
-			sx+=stepx;
-			sy+=stepy;
-			adddot(spantab, sx,sy);
-		}
-}
-
-void mergespans(struct spantab *spantab, int *put, int *take,
+static void mergespans(struct spantab *spantab, int *put, int *take,
 		int minx, int maxx, int delta)
 {
 int x=0;
@@ -283,7 +146,137 @@ int type;
 #endif
 }
 
-void generatespans(struct spantab *spantab,
+static void newcrossing(struct spantab *spantab)
+{
+struct spanlist *sl;
+int v;
+int runs[MAX_SPANS_PER_ROW*2+2];
+int minx, maxx;
+int *put, *take;
+
+	sl=spantab->spanlists + spantab->lasty;
+
+	if(!sl->havespan)
+	{
+		sl->xin = spantab->xin;
+		sl->xout = spantab->xout;
+		sl->havespan=1;
+		return;
+	}
+	sl->havespan = 0;
+
+	minx=sl->xin;
+	if(sl->xout<minx) minx=sl->xout;
+	maxx=spantab->xin;
+	if(spantab->xout>maxx) maxx=spantab->xout;
+	if(minx > maxx) v=-1;
+	else v=1;
+	if(spantab->xin<minx) minx=spantab->xin;
+	if(spantab->xout<minx) minx=spantab->xout;
+	if(sl->xin>maxx) maxx=sl->xin;
+	if(sl->xout>maxx) maxx=sl->xout;
+
+	if(spantab->lasty>spantab->firsty) v=-v;
+
+	put=runs;
+	take=sl->runs;
+
+	mergespans(spantab, put, take, minx, maxx, v);
+
+// copy back into runs
+	for(;;)
+	{
+		v = *take++ = *put++;
+		if(!v) break;
+		*take++ = *put++;
+	}
+}
+
+static void adddot(struct spantab *spantab, int x, int y)
+{
+	if(y<0 || y>=MAXLINES) return;
+	if(y<spantab->miny) spantab->miny=y;
+	if(y>spantab->maxy) spantab->maxy=y;
+	if(y==spantab->lasty)
+	{
+		spantab->xout=x;
+	} else
+	{
+		if(spantab->secondy<0)
+		{
+			spantab->secondy=y;
+			if(spantab->secondy > spantab->firsty)
+				--spantab->firsty;
+		}
+		if(spantab->lasty>=0)
+		{
+			newcrossing(spantab);
+			if(y==spantab->lastlasty)
+				newcrossing(spantab);
+		}
+		spantab->lastlasty=spantab->lasty;
+		spantab->lasty=y;
+		spantab->xin=spantab->xout=x;
+	}
+}
+
+static void closelast(struct spantab *spantab, int x, int y)
+{
+	if(spantab->secondy==spantab->lastlasty)
+	{
+		if(spantab->lasty<0 || spantab->lasty>=MAXLINES) return;
+		newcrossing(spantab);
+	}
+}
+
+static void v2(struct spantab *spantab, int sx,int sy,int dx,int dy)
+{
+int diffx,diffy;
+int stepx,stepy;
+float val,delta;
+
+	stepx=stepy=0;
+	diffx=dx-sx;
+	if(diffx<0) {diffx=-diffx;stepx=-1;}
+	else if(diffx>0) stepx=1;
+	diffy=dy-sy;
+	if(diffy<0) {diffy=-diffy;stepy=-1;}
+	else if(diffy>0) stepy=1;
+
+	adddot(spantab, sx, sy);
+
+	if(diffx>diffy)
+	{
+		val=sy;
+		delta=(dy-val)/diffx;
+		val+=0.5;
+		while(diffx--)
+		{
+			sx+=stepx;
+			val+=delta;
+			adddot(spantab, sx,(int)val);
+		}
+	} else if(diffx<diffy)
+	{
+		val=sx;
+		delta=(dx-val)/diffy;
+		val+=0.5;
+		while(diffy--)
+		{
+			sy+=stepy;
+			val+=delta;
+			adddot(spantab, (int)val,sy);
+		}
+	} else
+		while(diffx--)
+		{
+			sx+=stepx;
+			sy+=stepy;
+			adddot(spantab, sx,sy);
+		}
+}
+
+static void generatespans(struct spantab *spantab,
 		SDL_svg_context *c, IPoint *points, int num)
 {
 int i,j;
@@ -307,61 +300,28 @@ int n2;
 	}
 	closelast(spantab, points[num-1].x, points[num-1].y);
 }
-void renderspans(struct spantab *spantab,
+static void renderspans(struct spantab *spantab,
 		void renderfunc(SDL_svg_context *arg, int x, int y, int w),
 		SDL_svg_context *c)
 {
 int y;
 int fill_rule;
-struct spanlist *sl;
-int i,j;
+int len;
+int *take;
+int minx;
 
 	fill_rule = (c->fill_rule==SVG_FILL_RULE_NONZERO) ? ~0 : 1;
 
 	for(y=spantab->miny; y<=spantab->maxy;++y)
 	{
-		int runs1[2048],runs2[2048];
-		int ping;
-		int *take, *put;
-		int minx, maxx;
 
-		ping=0;
-		runs1[0]=1000000;
-		runs1[1]=0;
-		runs1[2]=0;
-
-		sl=spantab->spanlists+y;
-
-		for(i=0;i<sl->numspans-1;i+=2)
-		{
-			struct span *s1, *s2;
-			int v;
-			s1=sl->spans+i;
-			s2=sl->spans+i+1;
-
-			minx=s1->xin;
-			if(s1->xout<minx) minx=s1->xout;
-			maxx=s2->xin;
-			if(s2->xout>maxx) maxx=s2->xout;
-			if(minx > maxx) v=-1;
-			else v=1;
-			if(s2->xin<minx) minx=s2->xin;
-			if(s2->xout<minx) minx=s2->xout;
-			if(s1->xin>maxx) maxx=s1->xin;
-			if(s1->xout>maxx) maxx=s1->xout;
-
-			take=ping ? runs2 : runs1;
-			put=ping ? runs1 : runs2;
-			ping=!ping;
-			mergespans(spantab, put, take, minx, maxx, v);
-		}
-		take=ping ? runs2 : runs1;
+		take=spantab->spanlists[y].runs;
 		minx=0;
-		while((j=*take))
+		while((len=*take))
 		{
 			if(take[1] & fill_rule)
-				renderfunc(c, minx, y, j);
-			minx+=j;
+				renderfunc(c, minx, y, len);
+			minx+=len;
 			take+=2;
 		}
 		
@@ -371,7 +331,7 @@ int i,j;
 
 
 
-void lineargradient(SDL_svg_context *c, int x, int y, int w)
+static void lineargradient(SDL_svg_context *c, int x, int y, int w)
 {
 float cx,cy;
 float vx,vy;
@@ -436,7 +396,7 @@ to the circle P is, 0 <= fraction <= 1.0.
 (DA) 20041220
 */
 
-void radialgradient(SDL_svg_context *c, int x, int y, int w)
+static void radialgradient(SDL_svg_context *c, int x, int y, int w)
 {
 int policy;
 float va,vb,vc;
@@ -489,7 +449,7 @@ float dy2,y1cdy;
 
 }
 
-void solidstrip(SDL_svg_context *c, int x, int y, int w)
+static void solidstrip(SDL_svg_context *c, int x, int y, int w)
 {
 	while(w-->0)
 		colordot(c->surface, x++, y, c->solidcolor);
@@ -623,21 +583,3 @@ struct spantab spans;
 	}
 	renderspans(&spans, renderfunc, c);
 }
-
-
-void trace(SDL_Surface *thescreen, IPoint *path, int n,
-		int r, int g, int b, int a)
-{
-int i,j;
-unsigned long color;
-
-	color=maprgb(thescreen, r,g,b);
-	for(i=0;i<n;++i)
-	{
-		j=(i+1);
-		if(j==n) j=0;
-		vector(colordot, thescreen, (int)path[i].x, (int)path[i].y,
-			(int)path[j].x, (int)path[j].y, color);
-	}
-}
-
