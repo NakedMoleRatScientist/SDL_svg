@@ -1,4 +1,14 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Sun Jan 16 11:47:57 PST 2005
+
+Current version is 103, however this isn't stored anywhere.
+
+I fixed the span dropout in svg/filltest.svg where there is an element with
+2 paths, both clockwise, one inside the other, and the inside path has
+a long horizontal strip, and the fill is winding. The problem was in how
+I manage a row on a local maximum or minimum, the direction of the span
+wasn't accurate.
+----------------------------------------------------------------------------
 David Ashley (DA) Sun Jan 16 08:10:08 PST 2005
 
 Current version is 102, however this isn't stored anywhere.
