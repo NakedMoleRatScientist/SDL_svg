@@ -1,7 +1,7 @@
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
-#define SVG_VERSION 109
+#define SVG_VERSION 110
 
 #ifdef VERBOSE
 #define dprintf(format, arg...) printf(format, ##arg)
@@ -27,6 +27,7 @@ typedef struct svg_matrix {
 #define NUM_GRADIENT_COLORS 256 // must be power of 2
 struct SDL_svg_context {
 	SDL_Surface *surface;
+	unsigned long flags;
 	int numpoints; // number of ipoints of path that is building up
 	int pathmax; // number of ipoints that will fit in the allocated path
 	IPoint *path; // path that is building up
@@ -48,6 +49,7 @@ struct SDL_svg_context {
 	unsigned long solidcolor;
 // stuff related to the gray raster engine from freetype
 	void (*renderfunc)(SDL_svg_context *c, void *span, int y);
+	void (*colordot)(SDL_Surface *, int x, int y, unsigned long c, int f2);
 	char pool[0x40000]; // memory area used by gray raster engine
 
 // svg_fill_rule_t

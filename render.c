@@ -15,22 +15,53 @@ static unsigned long maprgb(SDL_Surface *thescreen, int r,int g,int b)
 	return SDL_MapRGB(thescreen->format,r,g,b);
 }
 
-static void colordot(void *arg, int x, int y, unsigned long c)
+static void colordot_16(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
 {
-	if(x<0 || y<0 ||
-		x>=((SDL_Surface *)arg)->w ||
-		y>=((SDL_Surface *)arg)->h)
-		return;
-	if((c>>24)==0xff)
-		*((unsigned long *)((SDL_Surface *)arg)->pixels+y *
-			((SDL_Surface *)arg)->pitch/4+x)=c;
+int r1,g1,b1,r2,g2,b2;
+SDL_PixelFormat *f;
+int a;
+	a=((f2+1) * (c>>24))>>8;
+	if(a==0xff)
+		*((unsigned short *)surf->pixels+y *
+			surf->pitch/2+x)=c;
 	else
 	{
-		unsigned long *p,t;
-		unsigned long a,ai;
-		p=((unsigned long *)((SDL_Surface *)arg)->pixels)+y *
-			((SDL_Surface *)arg)->pitch/4+x;
-		a=c>>24;
+		unsigned short *p,t;
+		int ai;
+		p=((unsigned short *)surf->pixels)+y *
+			surf->pitch/2+x;
+		ai=a^255;
+		t=*p;
+		f=surf->format;
+
+		r1 = c & f->Rmask;
+		g1 = c & f->Gmask;
+		b1 = c & f->Bmask;
+
+		r2 = t & f->Rmask;
+		g2 = t & f->Gmask;
+		b2 = t & f->Bmask;
+
+		*p = (((a * r1 + ai * r2) >> 8) & f->Rmask) |
+			(((a * g1 + ai * g2) >> 8) & f->Gmask) |
+			(((a * b1 + ai * b2) >> 8) & f->Bmask);
+
+	}
+}
+
+static void colordot_32(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
+{
+unsigned long a;
+	a=((f2+1) * (c>>24))>>8;
+	if(a==0xff)
+		*((unsigned long *)(surf->pixels)+y * surf->pitch/4+x)=c;
+	else
+	{
+		unsigned long *p, t;
+		unsigned long ai;
+		
+		p=(unsigned long *)(surf->pixels)+y * surf->pitch/4+x;
+
 		ai=a^255;
 		t=*p;
 
@@ -39,14 +70,39 @@ static void colordot(void *arg, int x, int y, unsigned long c)
 			(((a*(c&0xff0000) + ai*(t&0xff0000))&0xff000000)>>8);
 	}
 }
-
-static inline void acolordot(SDL_Surface *s, int x, int y, unsigned long c, int f2)
+static void colordot_32_composite(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
 {
-unsigned long a;
-	a=(f2+1) * ((c&0xff000000)>>8);
-	colordot(s, x, y, (a&0xff000000) | (c&0xffffff));
-}
+unsigned long a1, a2, a1a2, a1_a1a2, newa, newpixel;
+unsigned long *p, t;
+int c1, c2;
 
+	a2 = ((f2+1) * (c>>24))>>8;
+
+	if(a2==0xff)
+		*((unsigned long *)surf->pixels+y *
+			surf->pitch/4+x)=c | 0xff000000;
+	else
+	{
+		p=((unsigned long *)surf->pixels)+y *
+			surf->pitch/4+x;
+		t=*p;
+		a1=t>>24;
+		a1a2=a1*a2/255;
+		a1_a1a2=a1-a1a2;
+		newa = a2+a1_a1a2;
+
+		newpixel = newa<<24;
+		c1=255 & (t>>16);
+		c2=255 & (c>>16);
+		newpixel |= ((c1*a1_a1a2 + c2*a2) / newa) << 16;
+		c1=255 & (t>>8);
+		c2=255 & (c>>8);
+		newpixel |= ((c1*a1_a1a2 + c2*a2) / newa) << 8;
+		c1=255 & t;
+		c2=255 & c;
+		*p = newpixel | (c1*a1_a1a2 + c2*a2) / newa;
+	}
+}
 
 static void lineargradient(SDL_svg_context *c, void *_span, int y)
 {
@@ -93,7 +149,7 @@ int x, w, coverage;
 				dp^=(NUM_GRADIENT_COLORS-1);
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
-		acolordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
+		c->colordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
 	}
 }
 
@@ -172,7 +228,7 @@ int x, w, coverage;
 				dp^=(NUM_GRADIENT_COLORS-1);
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
-		acolordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
+		c->colordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
 	}
 
 }
@@ -185,7 +241,7 @@ int x, w, coverage;
 	w=((FT_Span *)_span)->len;
 	coverage=((FT_Span *)_span)->coverage;
 	while(w--)
-		acolordot(c->surface, x++, y, c->solidcolor, coverage);
+		c->colordot(c->surface, x++, y, c->solidcolor, coverage);
 }
 
 void myspanner(int y, int count, FT_Span *spans, void *user)
@@ -206,8 +262,23 @@ FT_Raster_Params myparams;
 FT_Outline myoutline;
 int n;
 int i;
+int iscomposite;
+
 
 	if(!c->renderfunc) return;
+
+	iscomposite = c->flags & SDL_SVG_FLAG_COMPOSITE;
+
+	if(c->surface->format->BytesPerPixel == 2)
+	{
+		c->colordot = colordot_16;
+	} else
+	{
+		if(!iscomposite)
+			c->colordot = colordot_32;
+		else
+			c->colordot = colordot_32_composite;
+	}
 
 	n = c->numpoints;
 
@@ -225,9 +296,7 @@ int i;
 	myoutline.points = points;
 	myoutline.tags = c->tags;
 	myoutline.contours = c->pathstops;
-	myoutline.flags = FT_OUTLINE_IGNORE_DROPOUTS;
-	if(c->fill_rule == SVG_FILL_RULE_EVEN_ODD)
-		myoutline.flags |= FT_OUTLINE_EVEN_ODD_FILL;
+	myoutline.flags = FT_OUTLINE_IGNORE_DROPOUTS | FT_OUTLINE_EVEN_ODD_FILL;
 
 	myparams.target = 0;
 	myparams.source = &myoutline;
@@ -236,9 +305,9 @@ int i;
 	myparams.gray_spans = myspanner;
 	myparams.user = c;
 	myparams.clip_box.xMin = 0;
-	myparams.clip_box.xMax = IFACTOR * c->surface->w;
+	myparams.clip_box.xMax = c->surface->w;
 	myparams.clip_box.yMin = 0;
-	myparams.clip_box.yMax = IFACTOR * c->surface->h;
+	myparams.clip_box.yMax = c->surface->h;
 
 // WARNING: The  grays raster_new is not thread safe, all instances use the
 // same raster structure

@@ -774,3 +774,8 @@ int SVG_Version(void)
 {
 	return SVG_VERSION;
 }
+
+void SVG_Set_Flags(SDL_svg_context *c, unsigned long flags)
+{
+	c->flags = flags;
+}
