@@ -374,25 +374,10 @@ static svg_status_t
 _SDL_SVG_SetFillPaint (void *closure, const svg_paint_t *paint)
 {
 SDL_svg_context *c=closure;
-svg_color_t *color = (svg_color_t*)(&(paint->p.color));
 
 	dprintf("svg_SetFillPaint\n");
 
 	c->paint = paint;
-
-	if (paint->type == SVG_PAINT_TYPE_GRADIENT)
-	{
-		if (c->paint->p.gradient->type == SVG_GRADIENT_LINEAR)
-			dprintf("svg_SetFillPaint  SVG_GRADIENT_LINEAR (color=#%08x) opacity %f stops %d\n", paint->p.gradient->stops->color.rgb, paint->p.gradient->stops->opacity, paint->p.gradient->num_stops);
-		else
-			dprintf("svg_SetFillPaint  SVG_GRADIENT_RADIAL(color=#%08x) opacity %f stops %d\n",paint->p.gradient->stops->color.rgb, paint->p.gradient->stops->opacity, paint->p.gradient->num_stops);
-		c->FillColor = paint->p.gradient->stops->color.rgb;
-	}
-	else
-	{
-		dprintf ("svg_SetFillPaint (color=#%08x)\n",color->rgb);
-		c->FillColor = color->rgb;
-	}
 
 	return SVG_STATUS_SUCCESS;
 }
@@ -569,15 +554,9 @@ _SDL_SVG_RenderEllipse (void *closure,
 						svg_length_t *ry_len)
 {
 SDL_svg_context *c=closure;
-int R, G, B, A;
 IPoint center;
 IPoint size1, size2;
 	dprintf("svg_RenderEllipse\n");
-
-	R = (c->FillColor & 0x00ff0000) >> 16;
-	G = (c->FillColor & 0x0000ff00) >> 8;
-	B = (c->FillColor & 0x000000ff);
-	A = c->FillOpacity * 255.0;
 
 	center = FixCoords(c, (IPoint)
 			{c->at.x + cx_len->value, c->at.y + cy_len->value});

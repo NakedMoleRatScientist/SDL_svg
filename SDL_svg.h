@@ -36,7 +36,6 @@ typedef struct _SDL_svg_context {
 	int *pathstops; // the pathstops, each are which IPoint at path to stop
 	IPoint at;
 	double FillOpacity;
-	unsigned long FillColor;
 	const svg_paint_t *paint; // Big question who deallocates this
 	IPoint gradient_p1; // for radial, the center point
 	IPoint gradient_p2; // for radial, the focus point

@@ -470,7 +470,6 @@ int colorstops;
 void (*renderfunc)(SDL_svg_context *c, int x, int y, int w);
 float minx, miny, maxx, maxy;
 IPoint *ip;
-int R,G,B,A;
 IPoint *path;
 int n;
 int startnum;
@@ -489,16 +488,18 @@ struct spantab spans;
 		if(ip->y>maxy) maxy=ip->y;
 	}
 
-	R = (c->FillColor & 0x00ff0000) >> 16;
-	G = (c->FillColor & 0x0000ff00) >> 8;
-	B = (c->FillColor & 0x000000ff);
-	A = 255; // temporary
+	renderfunc = solidstrip; // fall back on this
+	if(c->paint->type != SVG_PAINT_TYPE_GRADIENT)
+	{
+		const svg_color_t *rgb;
+		rgb = &c->paint->p.color;
+		c->solidcolor = maprgb(c->surface,
+			svg_color_get_red(rgb),
+			svg_color_get_green(rgb),
+			svg_color_get_blue(rgb)) |
+			(255 << 24); // temporary alpha value
 
-	c->solidcolor=maprgb(c->surface, R,G,B) | (A<<24);
-
-	renderfunc = solidstrip; // fall back on this...
-
-	if(c->paint->type == SVG_PAINT_TYPE_GRADIENT)
+	} else
 	{
 		colorstops = c->paint->p.gradient->num_stops;
 		for(i=0;i<colorstops-1;++i)
