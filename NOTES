@@ -1,4 +1,30 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Thu Feb 17 17:52:46 PST 2005
+
+Current version is 109.
+
+Major breakthrough!!!! We now have good anti-aliasing on SVG renders.
+
+It occured to me that the rendering engine used by SDL_ttf was pretty good
+at drawing very large glyphs. So I dug into that and it's using freetype.
+So I dug into freetype code and found there is a nifty renderer that handles
+anti-aliasing. It's even coded so that it can be a standalone renderer.
+
+So I hooked it into the SDL_svg project, replacing my effort. My hat's
+off to the authors (David Turner, Robert Wilhelm, and Werner Lemberg).
+I've reproduced the code intact here (ftimage.h, ftgrays.h, ftgrays.c).
+
+I was able to pass the bezier curve burden onto this rendering engine also.
+
+I made very slight changes to the original freetype source files:
+1) renamed the gray engine to svg_ft_grays_raster from ft_grays_raster,
+   this is because I'm using this in an application that is also using
+   SDL_ttf and so freetype, and the common name was causing trouble.
+2) Modified ftgrays.h so in standalone mode it #defines some items that
+   were generating errors (FT_BEGIN_HEADER and FT_END_HEADER).
+
+Their approach to the code is excellent, it was very easy to hook it in.
+----------------------------------------------------------------------------
 David Ashley (DA) Mon Feb  7 19:05:40 PST 2005
 
 Current version is 108.

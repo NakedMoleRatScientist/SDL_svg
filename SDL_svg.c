@@ -161,22 +161,6 @@ IPoint FixCoords(SDL_svg_context *c, IPoint p)
 {
 	p=svg_apply_matrix(c->tmatrixstack + c->tmatrixsp, p);
 
-if(0)
-{
-static float xmin=0x7fffffff, xmax=-0x7fffffff,
-	 ymin=0x7fffffff, ymax=-0x7ffffff;
-int changed=0;
-
-	if(p.x < xmin) xmin=p.x, changed=1;
-	if(p.y < ymin) ymin=p.y, changed=1;
-	if(p.x > xmax) xmax=p.x, changed=1;
-	if(p.y > ymax) ymax=p.y, changed=1;
-	if(1 || changed)
-	{
-		printf("(%f,%f) - (%f,%f)\n", xmin, ymin, xmax, ymax);
-	}
-}
-
 	return (IPoint) {
 		(p.x - c->OffsetX) * c->ScaleX + c->TargetOffsetX,
 		(p.y - c->OffsetY) * c->ScaleY + c->TargetOffsetY};
@@ -188,7 +172,10 @@ IPoint FixSizes(SDL_svg_context *c, IPoint p)
 	return (IPoint) { p.x * c->ScaleX, p.y * c->ScaleY};
 }
 
-static void _AddIPoint(SDL_svg_context *c, IPoint p)
+#define TAG_ONPATH    1 // on the path
+#define TAG_CONTROL2  0 // quadratic bezier control point
+#define TAG_CONTROL3  2 // cubic bezier control point
+static void _AddIPoint(SDL_svg_context *c, IPoint p, int tag)
 {
 	if(c->numpoints >= c->pathmax)
 	{
@@ -196,9 +183,13 @@ static void _AddIPoint(SDL_svg_context *c, IPoint p)
 		if(c->pathmax < MINPATH)
 			c->pathmax=MINPATH;
 		c->path = realloc(c->path, c->pathmax * sizeof(IPoint));
+		c->tags = realloc(c->tags, c->pathmax);
 // WARNING, possible memory allocation failure, untested
 	}
+	c->tags[c->numpoints] = tag;
 	c->path[c->numpoints++] = p;
+
+
 }
 
 // Note the explicitclose I'd plan on adding a high order bit set to
@@ -218,13 +209,13 @@ static void _AddPathStop(SDL_svg_context *c, int explicitclose)
 					c->maxpathstops * sizeof(int));
 // WARNING, possible memory allocation failure, untested
 	}
-	c->pathstops[c->numpathstops++] = c->numpoints;
+	c->pathstops[c->numpathstops++] = c->numpoints-1;
 }
 
 static int needs_path_stop(SDL_svg_context *c)
 {
 	return !c->numpathstops ||
-			c->pathstops[c->numpathstops-1] < c->numpoints;
+			c->pathstops[c->numpathstops-1]+1 < c->numpoints;
 }
 
 static svg_status_t
@@ -275,7 +266,7 @@ SDL_svg_context *c=closure;
 
 	if(c->numpoints && needs_path_stop(c))
 		_AddPathStop(c, 0);
-	_AddIPoint(c, FixCoords(c, (IPoint) {x, y}));
+	_AddIPoint(c, FixCoords(c, (IPoint) {x, y}), TAG_ONPATH);
 	c->at = (IPoint) {x, y};
 
 	return SVG_STATUS_SUCCESS;
@@ -288,7 +279,7 @@ SDL_svg_context *c=closure;
 
 	dprintf("svg_LineTo (x=%5.5f, y=%5.5f)\n",x,y);
 
-	_AddIPoint(c, FixCoords(c, (IPoint) {x, y}));
+	_AddIPoint(c, FixCoords(c, (IPoint) {x, y}), TAG_ONPATH);
 	c->at = (IPoint) {x, y};
 
 	return SVG_STATUS_SUCCESS;
@@ -301,8 +292,7 @@ _SDL_SVG_CurveTo (void *closure,
 				  double x3, double y3)
 {
 SDL_svg_context *c=closure;
-double t, k = .0625;								// size of drawing step
-IPoint p0,p1,p2,p3;
+IPoint p1,p2,p3;
 
 	dprintf("svg_CurveTo (x1=%5.5f, y1=%5.5f, x2=%5.5f, y2=%5.5f, x3=%5.5f, y3=%5.5f)\n",
           x1,y1,x2,y2,x3,y3);
@@ -310,24 +300,14 @@ IPoint p0,p1,p2,p3;
 	if(!c->path || !c->numpoints)
 		return SVG_STATUS_INVALID_CALL;
 
-	p0 = c->path[c->numpoints-1];
-
 	p1 = FixCoords(c, (IPoint) {x1, y1});
 	p2 = FixCoords(c, (IPoint) {x2, y2});
 	p3 = FixCoords(c, (IPoint) {x3, y3});
 
-	for(t = k; t <= 1+k; t += k)					// calculate and draw
-	{											// Bezier curve using
-		float t2 = t * t;							// Berstein polynomials
-		float t3 = t * t2;
-		float t4 = (1 - 3*t + 3*t2 - t3);
-		float t5 = (3*t - 6*t2 + 3*t3);
-		float t6 = (3*t2 - 3*t3);
-		float nx = t4*p0.x + t5*p1.x + t6*p2.x + t3*p3.x;
-		float ny = t4*p0.y + t5*p1.y + t6*p2.y + t3*p3.y;
+	_AddIPoint(c, (IPoint) {p1.x, p1.y}, TAG_CONTROL3);
+	_AddIPoint(c, (IPoint) {p2.x, p2.y}, TAG_CONTROL3);
+	_AddIPoint(c, (IPoint) {p3.x, p3.y}, TAG_ONPATH);
 
-		_AddIPoint(c, (IPoint) {nx, ny});
-	}
 	c->at = (IPoint) {x3, y3};
 	return SVG_STATUS_SUCCESS;
 }
@@ -337,8 +317,22 @@ _SDL_SVG_QuadraticCurveTo (void *closure,
 						  double x1, double y1,
 						  double x2, double y2)
 {
+SDL_svg_context *c=closure;
+IPoint p1,p2;
+
 	dprintf("svg_QuadraticCurveTo (x1=%5.5f, y1=%5.5f, x2=%5.5f, y2=%5.5f)\n",
           x1,y1,x2,y2);
+
+	if(!c->path || !c->numpoints)
+		return SVG_STATUS_INVALID_CALL;
+
+	p1 = FixCoords(c, (IPoint) {x1, y1});
+	p2 = FixCoords(c, (IPoint) {x2, y2});
+
+	_AddIPoint(c, (IPoint) {p1.x, p1.y}, TAG_CONTROL2);
+	_AddIPoint(c, (IPoint) {p2.x, p2.y}, TAG_ONPATH);
+
+	c->at = (IPoint) {x2, y2};
 	return SVG_STATUS_SUCCESS;
 }
 
@@ -540,7 +534,7 @@ SDL_svg_context *c=closure;
 
 	if(needs_path_stop(c))
 		_AddPathStop(c, 0);
-	solid(c);
+	svg_render_solid(c);
 
 	c->numpoints=0;
 	c->numpathstops=0;
@@ -593,10 +587,10 @@ float x2,y2;
 	x2 = x1 + width_len->value;
 	y2 = y1 + height_len->value;
 
-	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y1}));
-	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y1}));
-	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y2}));
-	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y2}));
+	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y1}), TAG_ONPATH);
+	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y1}), TAG_ONPATH);
+	_AddIPoint(c, FixCoords(c, (IPoint) {x2, y2}), TAG_ONPATH);
+	_AddIPoint(c, FixCoords(c, (IPoint) {x1, y2}), TAG_ONPATH);
 	_SDL_SVG_RenderPath(closure);
 
 	return SVG_STATUS_SUCCESS;
@@ -762,6 +756,16 @@ void destroy_SDL_svg_context(SDL_svg_context *c)
 	{
 		free(c->path);
 		c->path=0;
+	}
+	if(c->tags)
+	{
+		free(c->tags);
+		c->tags=0;
+	}
+	if(c->pathstops)
+	{
+		free(c->pathstops);
+		c->pathstops=0;
 	}
 	free(c);
 }

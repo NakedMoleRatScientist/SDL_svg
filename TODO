@@ -11,14 +11,6 @@ o The alpha channel isn't handled as fully as I'd like. For example suppose
   itself would be applied to another SDL_surface, with an alpha channel.
   The resulting alpha channel on the SDL_svg rendered surface probably won't
   contain the correct values.
-o Optimization is possible in a lot of rendering code. For example the
-  CurveTo function converts all bezier curves into 16 LineTo's. Maybe this
-  is overkill. Or maybe it's not enough when the curve is magnified.
-  The inner loop of the radial gradient can be tuned a little.
-o "solid" function generates a compiler warning. I left them in since it's
-  a work in progress.
-o Span algorithm has fixed maximum sizes, this isn't really wise.
-o No attempt at anti-aliasing
 o autoconf would be nice. Enzo's project might have had one.
 o libsvg's use of a length structure or a double as a passed argument isn't
   clear, or at least I don't understand it.
@@ -26,8 +18,6 @@ o Scaling of length variables probably isn't correct.
 o I hack into rgb values of the libsvg color or rgb structure, whatever it's
   called. libsvg provides inline functions to get the r, g, b and a values
   I think, these are probably safer.
-o Span algorithm needs cleanup on start/end of path, it's pretty cryptic and
-  I'm not sure if it is completely correct.
 o Perhaps replace floating point with fixed point integer/fractional values?
   I was originally intending this when I named the point structure "IPoint".
   Then I ended up using floats.
@@ -44,3 +34,18 @@ o DONE Sun Jan 16 08:27:23 PST 2005
   This might be the cause of the path failures in the svg/bored_dog_01.svg file.
   Or it could be just edge effects on the end or beginning of a path.
   This really would only be a problem on the winding mode for fills.
+o DEFUNCT Thu Feb 17 18:01:28 PST 2005
+  Span algorithm needs cleanup on start/end of path, it's pretty cryptic and
+  I'm not sure if it is completely correct.
+o DONE Thu Feb 17 18:01:28 PST 2005
+  No attempt at anti-aliasing
+o DEFUNCT Thu Feb 17 18:01:28 PST 2005
+  Optimization is possible in a lot of rendering code. For example the
+  CurveTo function converts all bezier curves into 16 LineTo's. Maybe this
+  is overkill. Or maybe it's not enough when the curve is magnified.
+  The inner loop of the radial gradient can be tuned a little.
+o DONE Thu Feb 17 18:01:28 PST 2005
+  "solid" function generates a compiler warning. I left them in since it's
+  a work in progress.
+o DEFUNCT Thu Feb 17 18:01:28 PST 2005
+  Span algorithm has fixed maximum sizes, this isn't really wise.

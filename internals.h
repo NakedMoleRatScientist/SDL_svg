@@ -1,7 +1,7 @@
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
-#define SVG_VERSION 108
+#define SVG_VERSION 109
 
 #ifdef VERBOSE
 #define dprintf(format, arg...) printf(format, ##arg)
@@ -30,9 +30,10 @@ struct SDL_svg_context {
 	int numpoints; // number of ipoints of path that is building up
 	int pathmax; // number of ipoints that will fit in the allocated path
 	IPoint *path; // path that is building up
+	char *tags; // tags used for gray renderer, same # as path
 	int numpathstops; // number of pathstops at *pathstops
 	int maxpathstops; // maximum space at *pathstops
-	int *pathstops; // the pathstops, each are which IPoint at path to stop
+	short *pathstops; // the pathstops, each are which IPoint at path to stop
 	IPoint at;
 	double FillOpacity;
 // svg_paint_t
@@ -45,6 +46,10 @@ struct SDL_svg_context {
 	svg_matrix_t tmatrixstack[MATRIXSTACKDEPTH];
 	unsigned long gradient_colors[NUM_GRADIENT_COLORS];
 	unsigned long solidcolor;
+// stuff related to the gray raster engine from freetype
+	void (*renderfunc)(SDL_svg_context *c, void *span, int y);
+	char pool[0x40000]; // memory area used by gray raster engine
+
 // svg_fill_rule_t
 	int fill_rule;
 
@@ -68,5 +73,6 @@ IPoint svg_apply_matrix(svg_matrix_t *m, IPoint p);
 IPoint svg_apply_matrix_without_translation(svg_matrix_t *m, IPoint p);
 
 void svg_matrix_multiply(svg_matrix_t *dest, svg_matrix_t *left, svg_matrix_t *right);
+void svg_render_solid(SDL_svg_context *c);
 
 #endif

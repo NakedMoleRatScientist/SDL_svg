@@ -5,15 +5,16 @@ VPATH = ..
 CFLAGS=-Wall -O2
 CFLAGS += -I/usr/local/include/SDL
 CFLAGS += -I../libsvg
+CFLAGS += -D_STANDALONE_
 #CFLAGS += -DVERBOSE
 #CFLAGS += -g
 
 LDFLAGS += -L/usr/X11R6/lib
 
-SRC = matrix.c render.c SDL_svg.c
+SRC = matrix.c render.c SDL_svg.c ftgrays.c
 OBJ = $(SRC:.c=.o)
 LIB = libSDL_svg.so
-DEPS = SDL_svg.h Makefile
+DEPS = SDL_svg.h Makefile internals.h ftimage.h ftgrays.h
 
 all:
 	mkdir -p $(TARGET)

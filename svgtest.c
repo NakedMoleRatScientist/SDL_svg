@@ -43,7 +43,7 @@ int code;
 	full.y = 0;
 	full.w = screen->w;
 	full.h = screen->h;
-	SDL_FillRect(screen, &full, 0xFFFFFF);
+	SDL_FillRect(screen, &full, 0x808080);
 	SDL_UpdateRect(screen,0,0,0,0);
 
 	SDL_svg_context *TestImage = SVG_Load (argv[1]);
