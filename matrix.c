@@ -39,6 +39,20 @@ void svg_matrix_description (svg_matrix_t *m)
 			m->a, m->b, m->c, m->d, m->e, m->f);
 }
 
+void svg_matrix_translate(svg_matrix_t *m, float dx, float dy)
+{
+	m->e+=dx;
+	m->f+=dy;
+}
+
+void svg_matrix_scale(svg_matrix_t *m, float sx, float sy)
+{
+	m->a*=sx;
+	m->b*=sx;
+	m->c*=sy;
+	m->d*=sy;
+}
+
 IPoint svg_apply_matrix(svg_matrix_t *m, IPoint p)
 {
 IPoint n;

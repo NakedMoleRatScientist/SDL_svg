@@ -1,7 +1,7 @@
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
-#define SVG_VERSION 110
+#define SVG_VERSION 114
 
 #include <svg.h>
 
@@ -78,6 +78,8 @@ float ConvertLength(svg_length_t *l);
 void svg_matrix_init(svg_matrix_t *dst, float va, float vb, float vc,
 			float vd, float ve, float vf);
 IPoint svg_apply_matrix(svg_matrix_t *m, IPoint p);
+void svg_matrix_translate(svg_matrix_t *m, float dx, float dy);
+void svg_matrix_scale(svg_matrix_t *m, float sx, float sy);
 IPoint svg_apply_matrix_without_translation(svg_matrix_t *m, IPoint p);
 
 void svg_matrix_multiply(svg_matrix_t *dest, svg_matrix_t *left, svg_matrix_t *right);

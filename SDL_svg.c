@@ -155,6 +155,16 @@ void poptmatrix(SDL_svg_context *c)
 	c->tmatrixsp = (c->tmatrixsp - 1) & (MATRIXSTACKDEPTH-1);
 }
 
+void _scale(SDL_svg_context *c, float sx, float sy)
+{
+	svg_matrix_scale(c->tmatrixstack + c->tmatrixsp, sx, sy);
+}
+
+void _translate(SDL_svg_context *c, float dx, float dy)
+{
+	svg_matrix_translate(c->tmatrixstack + c->tmatrixsp, dx, dy);
+}
+
 static void _extremes(SDL_svg_context *c, float x, float y)
 {
 	if(x < c->minx) c->minx=x;
@@ -570,12 +580,10 @@ _SDL_SVG_RenderEllipse (void *closure,
 						svg_length_t *ry_len)
 {
 SDL_svg_context *c=closure;
-IPoint center;
-IPoint size1, size2;
 svg_length_t rx2, ry2;
 svg_length_t tcx, tcy;
 
-	printf("svg_RenderEllipse\n");
+	dprintf("svg_RenderEllipse\n");
 
 	rx2 = *rx_len;
 	rx2.value *= 2.0;
@@ -593,17 +601,6 @@ svg_length_t tcx, tcy;
 			&tcx, &tcy,
 			&rx2, &ry2,
 			rx_len, ry_len);
-/*
-
-	center = FixCoords(c, (IPoint)
-			{c->at.x + cx_len->value, c->at.y + cy_len->value});
-
-	size1 = FixSizes(c, (IPoint) { rx_len->value, 0});
-	size2 = FixSizes(c, (IPoint) { 0, ry_len->value});
-
-//	filledEllipseRGBA(c->surface, center.x, center.y, size.x, size.y, R,G,B,A);
-//	aaellipseRGBA(c->surface, center.x, center.y, size.x, size.y, R,G,B,A);
-*/
 
 	return SVG_STATUS_SUCCESS;
 }
@@ -684,12 +681,81 @@ static svg_status_t _SDL_SVG_RenderImage (void *closure,
 	return SVG_STATUS_SUCCESS;
 }
 
+
+
 static svg_status_t _SDL_SVG_ApplyViewBox (void *closure,
                                            svg_view_box_t view_box,
                                            svg_length_t *width,
                                            svg_length_t *height)
 {
+SDL_svg_context *c = closure;
+double vpar, svgar;
+double logic_width, logic_height;
+double logic_x, logic_y;
+double phys_width, phys_height;
+
 	dprintf("svg_ApplyViewBox\n");
+
+	phys_width = ConvertLength(width);
+	phys_height = ConvertLength(height);
+
+	vpar = view_box.box.width / view_box.box.height;
+	svgar = phys_width / phys_height;
+	logic_x = view_box.box.x;
+	logic_y = view_box.box.y;
+	logic_width = view_box.box.width;
+	logic_height = view_box.box.height;
+
+	if (view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_NONE)
+	{
+		_scale (c,
+			 phys_width / logic_width,
+			 phys_height / logic_height);
+		_translate (c, -logic_x, -logic_y);
+	} else if((vpar < svgar &&
+			view_box.meet_or_slice == SVG_MEET_OR_SLICE_MEET) ||
+			(vpar >= svgar &&
+			view_box.meet_or_slice == SVG_MEET_OR_SLICE_SLICE))
+	{
+		_scale (c,
+			phys_height / logic_height, phys_height / logic_height);
+
+		if (view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMINYMIN ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMINYMID ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMINYMAX)
+			_translate (c, -logic_x, -logic_y);
+		else if(view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMIDYMIN ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMIDYMID ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMIDYMAX)
+			_translate (c,
+				 -logic_x - (logic_width - phys_width * logic_height / phys_height) / 2,
+				 -logic_y);
+		else
+			_translate (c,
+			 -logic_x - (logic_width - phys_width * logic_height / phys_height),
+			 -logic_y);
+	} else
+	{
+		_scale (c, phys_width / logic_width, phys_width / logic_width);
+
+		if (view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMINYMIN ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMIDYMIN ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMAXYMIN)
+			_translate (c, -logic_x, -logic_y);
+		else if(view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMINYMID ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMIDYMID ||
+			view_box.aspect_ratio == SVG_PRESERVE_ASPECT_RATIO_XMAXYMID)
+			_translate (c,
+				 -logic_x,
+				 -logic_y - (logic_height - phys_height * logic_width / phys_width) / 2);
+		else
+			_translate (c,
+			 -logic_x,
+			 -logic_y - (logic_height - phys_height * logic_width / phys_width));
+	}
+
+
+
 	return SVG_STATUS_SUCCESS;
 }
 
@@ -703,7 +769,7 @@ static svg_status_t _SDL_SVG_ApplyViewBox (void *closure,
 */
 static void
 _svg_path_arc_segment (SDL_svg_context *c,
-		       double xc, double yc,
+                 double xc, double yc,
 		       double th0, double th1,
 		       double rx, double ry, double x_axis_rotation)
 {
