@@ -492,12 +492,14 @@ struct spantab spans;
 	if(c->paint->type != SVG_PAINT_TYPE_GRADIENT)
 	{
 		const svg_color_t *rgb;
+		int alpha;
 		rgb = &c->paint->p.color;
+		alpha = 255.0 * c->FillOpacity;
 		c->solidcolor = maprgb(c->surface,
 			svg_color_get_red(rgb),
 			svg_color_get_green(rgb),
 			svg_color_get_blue(rgb)) |
-			(255 << 24); // temporary alpha value
+			(alpha << 24);
 
 	} else
 	{

@@ -1,4 +1,12 @@
 ----------------------------------------------------------------------------
+David Ashley (DA) Sun Jan 16 15:24:12 PST 2005
+
+Current version is 104, however this isn't stored anywhere.
+
+Got rid of FillColor, just pull the color + alpha from the paint.
+It's not clear why all the rendering functions have an opacity passed in,
+but there is also a set_fil_opacity function.
+----------------------------------------------------------------------------
 David Ashley (DA) Sun Jan 16 11:47:57 PST 2005
 
 Current version is 103, however this isn't stored anywhere.
