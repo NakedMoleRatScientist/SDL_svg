@@ -13,52 +13,45 @@
 
 /*
    Matrix looks like this:
-   A   C   E
-   B   D   F
+   a   c   e
+   b   d   f
    0   0   1
 */
 
 
-
-#define A matrix[0]
-#define B matrix[1]
-#define C matrix[2]
-#define D matrix[3]
-#define E matrix[4]
-#define F matrix[5]
 
 void svg_matrix_init (svg_matrix_t *dst,
 				float a, float b,
 				float c, float d,
 				float e, float f)
 {
-	dst->A = a;
-	dst->B = b;
-	dst->C = c;
-	dst->D = d;
-	dst->E = e;
-	dst->F = f;
+	dst->a = a;
+	dst->b = b;
+	dst->c = c;
+	dst->d = d;
+	dst->e = e;
+	dst->f = f;
 }
 
 void svg_matrix_description (svg_matrix_t *m)
 {
 	printf ("svg_matrix_t (%f %f %f %f  %f %f)\n",
-			m->A, m->B, m->C, m->D, m->E, m->F);
+			m->a, m->b, m->c, m->d, m->e, m->f);
 }
 
 IPoint svg_apply_matrix(svg_matrix_t *m, IPoint p)
 {
 IPoint n;
-	n.x = m->A * p.x + m->C * p.y + m->E;
-	n.y = m->B * p.x + m->D * p.y + m->F;
+	n.x = m->a * p.x + m->c * p.y + m->e;
+	n.y = m->b * p.x + m->d * p.y + m->f;
 	return n;
 }
 
 IPoint svg_apply_matrix_without_translation(svg_matrix_t *m, IPoint p)
 {
 IPoint n;
-	n.x = m->A * p.x + m->C * p.y;
-	n.y = m->B * p.x + m->D * p.y;
+	n.x = m->a * p.x + m->c * p.y;
+	n.y = m->b * p.x + m->d * p.y;
 	return n;
 }
 
@@ -67,12 +60,31 @@ void svg_matrix_multiply(svg_matrix_t *dest,
 {
 svg_matrix_t res;
 
-	res.A = left->A*right->A + left->C*right->B;
-	res.C = left->A*right->C + left->C*right->D;
-	res.E = left->A*right->E + left->C*right->F + left->E;
+	res.a = left->a*right->a + left->c*right->b;
+	res.c = left->a*right->c + left->c*right->d;
+	res.e = left->a*right->e + left->c*right->f + left->e;
 
-	res.B = left->B*right->A + left->D*right->B;
-	res.D = left->B*right->C + left->D*right->D;
-	res.F = left->B*right->E + left->D*right->F + left->F;
+	res.b = left->b*right->a + left->d*right->b;
+	res.d = left->b*right->c + left->d*right->d;
+	res.f = left->b*right->e + left->d*right->f + left->f;
 	*dest = res;
+}
+
+svg_matrix_t svg_matrix_invert(svg_matrix_t *in)
+{
+float det;
+svg_matrix_t dst;
+
+	det = in->a * in->d - in->b * in->c;
+
+	if(det == 0.0)
+		return (svg_matrix_t) {1.0, 0.0, 0.0, 1.0, 0.0, 0.0};
+	dst.a = in->d/det;
+	dst.b = -in->b/det;
+	dst.c = -in->c/det;
+	dst.d = in->a/det;
+	dst.e = in->c * in->f - in->d * in->e;
+	dst.f = in->b * in->e - in->a * in->f;
+	return dst;
+
 }

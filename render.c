@@ -113,7 +113,6 @@ float dx,dy;
 int dp;
 int policy;
 int x, w, coverage;
-float xp,yp;
 
 
 	x=((FT_Span *)_span)->x;
@@ -131,11 +130,8 @@ float xp,yp;
 
 	f=(vx*vx+vy*vy);
 
-	xp = x + c->e;
-	yp = y + c->f;
-
-	dx = c->a * xp + c->b * yp - cx;
-	dy = c->c * xp + c->d * yp - cy;
+	dx = c->gm.a * x + c->gm.c * y + c->gm.e - cx;
+	dy = c->gm.b * x + c->gm.d * y + c->gm.f - cy;
 
 	while(w--)
 	{
@@ -155,8 +151,8 @@ float xp,yp;
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
 		c->colordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
-		dx+=c->a;
-		dy+=c->c;
+		dx+=c->gm.a;
+		dy+=c->gm.b;
 	}
 }
 
@@ -193,7 +189,6 @@ int dp;
 float cx,cy;
 float r,r2;
 int x, w, coverage;
-float xp, yp;
 
 	x=((FT_Span *)_span)->x;
 	w=((FT_Span *)_span)->len;
@@ -209,11 +204,8 @@ float xp, yp;
 	y1c=c->gradient_p2.y - cy;
 	vc=x1c*x1c + y1c*y1c - r2;
 
-	xp = x + c->e;
-	yp = y + c->f;
-
-	dx=c->a * xp + c->b * yp - c->gradient_p2.x;
-	dy=c->c * xp + c->d * yp - c->gradient_p2.y;
+	dx=c->gm.a * x + c->gm.c * y + c->gm.e - c->gradient_p2.x;
+	dy=c->gm.b * x + c->gm.d * y + c->gm.f - c->gradient_p2.y;
 //printf("%f %f %f %f\n", dx, dy, c->gradient_p2.x, c->gradient_p2.y);
 	while(w--)
 	{
@@ -239,8 +231,8 @@ float xp, yp;
 			dp&=(NUM_GRADIENT_COLORS-1);
 		}
 		c->colordot(c->surface, x++, y, c->gradient_colors[dp], coverage);
-		dx += c->a;
-		dy += c->c;
+		dx += c->gm.a;
+		dy += c->gm.b;
 	}
 
 }
@@ -342,40 +334,14 @@ void svg_render_solid(SDL_svg_context *c)
 int i,j;
 int colorstops;
 //void (*renderfunc)(SDL_svg_context *c, int x, int y, int w);
-IPoint vx, vy, tv;
-float xx,xy,yx,yy, det;
 IPoint *path;
 svg_paint_t *paint;
 const svg_color_t *rgb;
 int alpha;
+svg_matrix_t tm;
 
 	c->renderfunc = 0;
 	path = c->path;
-
-	tv = FixCoords(c, (IPoint) {c->minx, c->miny});
-	vx = FixCoords(c, (IPoint) {c->maxx, c->miny});
-	vy = FixCoords(c, (IPoint) {c->minx, c->maxy});
-
-// x' = x+e
-// y' = y+f
-// x'' = ax' + by'
-// y'' = cx' + dy'
-
-	c->e = -tv.x;
-	c->f = -tv.y;
-	xx = vx.x - tv.x;
-	xy = vx.y - tv.y;
-	yx = vy.x - tv.x;
-	yy = vy.y - tv.y;
-	det = xx*yy - xy*yx;
-	if(det != 0.0)
-	{
-		c->a = yy / det;
-		c->b = -yx / det;
-		c->c = -xy / det;
-		c->d = xx / det;
-	} else
-		c->a = c->b = c->c = c->d = 0.0;
 
 	paint = c->paint;
 	switch(paint->type)
@@ -457,9 +423,51 @@ int alpha;
 			c->gradient_p1 = FixCoords(c, c->gradient_p1);
 			c->gradient_p2 = FixCoords(c, c->gradient_p2);
 			c->gradient_r = FixSizes(c, (IPoint) {c->gradient_r, 0.0}).x;
+
+			c->gm.a = c->gm.d = 1.0;
+			c->gm.c = c->gm.b = c->gm.e = c->gm.f = 0.0;
 		} else // BBOX
 		{
+			IPoint vx, vy, tv;
+			float xx,xy,yx,yy, det;
+			tv = FixCoords(c, (IPoint) {c->minx, c->miny});
+			vx = FixCoords(c, (IPoint) {c->maxx, c->miny});
+			vy = FixCoords(c, (IPoint) {c->minx, c->maxy});
+
+// x' = x+e
+// y' = y+f
+// x'' = ax' + by'
+// y'' = cx' + dy'
+
+			xx = vx.x - tv.x;
+			xy = vx.y - tv.y;
+			yx = vy.x - tv.x;
+			yy = vy.y - tv.y;
+			det = xx*yy - xy*yx;
+			if(det != 0.0)
+			{
+				c->gm.a = yy / det;
+				c->gm.c = -yx / det;
+				c->gm.b = -xy / det;
+				c->gm.d = xx / det;
+			} else
+				c->gm.a = c->gm.b = c->gm.c = c->gm.d = 0.0;
+			c->gm.e = -(c->gm.a * tv.x + c->gm.c * tv.y);
+			c->gm.f = -(c->gm.b * tv.x + c->gm.d * tv.y);
 		}
+// go get the gradient transform
+		svg_matrix_init(&tm,
+			paint->p.gradient->transform[0],
+			paint->p.gradient->transform[1],
+			paint->p.gradient->transform[2],
+			paint->p.gradient->transform[3],
+			paint->p.gradient->transform[4],
+			paint->p.gradient->transform[5]);
+// invert it
+		tm = svg_matrix_invert(&tm);
+// apply it to our own gm
+		svg_matrix_multiply(&c->gm, &c->gm, &tm);
+
 		break;
 	default:
 		c->renderfunc = 0;

@@ -17,7 +17,7 @@ typedef struct _IPoint {
 } IPoint;
 
 typedef struct svg_matrix {
-	float matrix[6];
+	float a,b,c,d,e,f;
 } svg_matrix_t;
 
 
@@ -54,7 +54,7 @@ struct SDL_svg_context {
 	void (*colordot)(SDL_Surface *, int x, int y, unsigned long c, int f2);
 	char pool[0x40000]; // memory area used by gray raster engine
 //
-	float a,b,c,d,e,f;
+	svg_matrix_t gm;
 	float minx, miny, maxx, maxy;
 
 // svg_fill_rule_t
@@ -82,5 +82,6 @@ IPoint svg_apply_matrix_without_translation(svg_matrix_t *m, IPoint p);
 
 void svg_matrix_multiply(svg_matrix_t *dest, svg_matrix_t *left, svg_matrix_t *right);
 void svg_render_solid(SDL_svg_context *c);
+svg_matrix_t svg_matrix_invert(svg_matrix_t *in);
 
 #endif
