@@ -1,13 +1,3 @@
-o Fix problem in elements composed of multiple paths, like the letter 'O' which
-  would have an inside path and an outside path. The spanning algorithm
-  fails miserably on this right now. The issue is that the "sense" of each
-  row needs to be consistent for all paths, but it is only consistent for
-  a single path. That's because left to right vs right to left crossings
-  matter, and there is no guarantee the inside path starts on the same row
-  as the outside path (in the 'O' example).
-  This might be the cause of the path failures in the svg/bored_dog_01.svg file.
-  Or it could be just edge effects on the end or beginning of a path.
-  This really would only be a problem on the winding mode for fills.
 o The path itself isn't stroked, just the fill.
 o Lots of elements like rectangle + ovals are not implemented fully or at all.
 o Rectangle implementation doesn't handle rounded corners
@@ -41,3 +31,16 @@ o Span algorithm needs cleanup on start/end of path, it's pretty cryptic and
 o Perhaps replace floating point with fixed point integer/fractional values?
   I was originally intending this when I named the point structure "IPoint".
   Then I ended up using floats.
+
+
+o DONE Sun Jan 16 08:27:23 PST 2005
+  Fix problem in elements composed of multiple paths, like the letter 'O' which
+  would have an inside path and an outside path. The spanning algorithm
+  fails miserably on this right now. The issue is that the "sense" of each
+  row needs to be consistent for all paths, but it is only consistent for
+  a single path. That's because left to right vs right to left crossings
+  matter, and there is no guarantee the inside path starts on the same row
+  as the outside path (in the 'O' example).
+  This might be the cause of the path failures in the svg/bored_dog_01.svg file.
+  Or it could be just edge effects on the end or beginning of a path.
+  This really would only be a problem on the winding mode for fills.
