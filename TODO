@@ -1,17 +1,5 @@
 o The path itself isn't stroked, just the fill.
-o Lots of elements like rectangle + ovals are not implemented fully or at all.
-o Rectangle implementation doesn't handle rounded corners
-o Fill coordinate system isn't correct. For example in radial gradients the
-  implementation always draws perfectly circular gradients. The gradients
-  in that case need to be oval shaped depending on the bounding box of the
-  element (I think?) I think all the gradients need x + y scaling in some
-  form.
-o The alpha channel isn't handled as fully as I'd like. For example suppose
-  you're rending SVG into an SDL surface, the intent being the SDL_surface
-  itself would be applied to another SDL_surface, with an alpha channel.
-  The resulting alpha channel on the SDL_svg rendered surface probably won't
-  contain the correct values.
-o autoconf would be nice. Enzo's project might have had one.
+o Lots of elements not implemented fully or at all.
 o libsvg's use of a length structure or a double as a passed argument isn't
   clear, or at least I don't understand it.
 o Scaling of length variables probably isn't correct.
@@ -22,7 +10,7 @@ o Perhaps replace floating point with fixed point integer/fractional values?
   I was originally intending this when I named the point structure "IPoint".
   Then I ended up using floats.
 
-
+----------------------------------------------------------------------------
 o DONE Sun Jan 16 08:27:23 PST 2005
   Fix problem in elements composed of multiple paths, like the letter 'O' which
   would have an inside path and an outside path. The spanning algorithm
@@ -49,3 +37,19 @@ o DONE Thu Feb 17 18:01:28 PST 2005
   a work in progress.
 o DEFUNCT Thu Feb 17 18:01:28 PST 2005
   Span algorithm has fixed maximum sizes, this isn't really wise.
+o DONE Fri Feb 18 17:49:08 PST 2005
+  The alpha channel isn't handled as fully as I'd like. For example suppose
+  you're rending SVG into an SDL surface, the intent being the SDL_surface
+  itself would be applied to another SDL_surface, with an alpha channel.
+  The resulting alpha channel on the SDL_svg rendered surface probably won't
+  contain the correct values.
+o DONE Sun Feb 20 20:25:32 PST 2005
+  autoconf would be nice. Enzo's project might have had one.
+o DONE Sat Mar 19 17:45:29 PST 2005
+  Fill coordinate system isn't correct. For example in radial gradients the
+  implementation always draws perfectly circular gradients. The gradients
+  in that case need to be oval shaped depending on the bounding box of the
+  element (I think?) I think all the gradients need x + y scaling in some
+  form.
+o DONE Sun Mar 20 19:59:04 PST 2005
+  Rectangle implementation doesn't handle rounded corners

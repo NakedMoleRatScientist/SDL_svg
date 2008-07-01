@@ -260,14 +260,19 @@ SDL_svg_context *c=closure;
 	c->miny = HUGE;
 	c->maxx = -HUGE;
 	c->maxy = -HUGE;
+	if(c->paintsp < MATRIXSTACKDEPTH)
+		c->paintstack[c->paintsp++] = c->paint;
 	return SVG_STATUS_SUCCESS;
 }
 
 static svg_status_t
 _SDL_SVG_EndElement (void *closure)
 {
+SDL_svg_context *c=closure;
 	dprintf("svg_EndElement\n");
-	poptmatrix((SDL_svg_context *)closure);
+	poptmatrix(c);
+	if(c->paintsp)
+		c->paint = c->paintstack[--c->paintsp];
 	return SVG_STATUS_SUCCESS;
 }
 
@@ -1009,6 +1014,10 @@ SDL_svg_context *c;
 		c->ScaleX = 1.0;
 		c->ScaleY = 1.0;
 		c->tmatrixsp=0;
+		c->clip_xmin = 0;
+		c->clip_ymin = 0;
+		c->clip_xmax = 0;
+		c->clip_ymax = 0;
 		svg_matrix_init(&c->tmatrixstack[c->tmatrixsp],
 			1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
 	}
@@ -1044,3 +1053,14 @@ void SVG_Set_Flags(SDL_svg_context *c, unsigned long flags)
 {
 	c->flags = flags;
 }
+
+void SVG_SetClipping(SDL_svg_context *c, int xmin, int ymin,
+	int xmax, int ymax)
+{
+	c->clip_xmin = xmin;
+	c->clip_ymin = ymin;
+	c->clip_xmax = xmax;
+	c->clip_ymax = ymax;
+	c->internal_flags |= INT_FLAG_CLIPPING_SET;
+}
+

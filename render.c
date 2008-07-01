@@ -4,18 +4,24 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
-#include <svg.h>
+#include <libsvg/svg.h>
 #include "ftgrays.h"
 
 #define IFACTOR 64 // used to fix coords to the grays rendering engine format
 
 
-static unsigned long maprgb(SDL_Surface *thescreen, int r,int g,int b)
+static Uint32 maprgb(SDL_Surface *thescreen, int r,int g,int b)
 {
 	return SDL_MapRGB(thescreen->format,r,g,b);
 }
 
-static void colordot_16(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
+static void colordot_8(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
+{
+	Uint8 *p = (Uint8*)surf->pixels + y * surf->pitch + x;
+	*p = (Uint8) c;
+}
+
+static void colordot_16(SDL_Surface *surf, int x, int y, Uint32 c, int f2)
 {
 int r1,g1,b1,r2,g2,b2;
 SDL_PixelFormat *f;
@@ -49,18 +55,18 @@ int a;
 	}
 }
 
-static void colordot_32(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
+static void colordot_32(SDL_Surface *surf, int x, int y, Uint32 c, int f2)
 {
-unsigned long a;
+Uint32 a;
 	a=((f2+1) * (c>>24))>>8;
 	if(a==0xff)
-		*((unsigned long *)(surf->pixels)+y * surf->pitch/4+x)=c;
+		*((Uint32 *)(surf->pixels)+y * surf->pitch/4+x)=c;
 	else
 	{
-		unsigned long *p, t;
-		unsigned long ai;
+		Uint32 *p, t;
+		Uint32 ai;
 		
-		p=(unsigned long *)(surf->pixels)+y * surf->pitch/4+x;
+		p=(Uint32 *)(surf->pixels)+y * surf->pitch/4+x;
 
 		ai=a^255;
 		t=*p;
@@ -70,20 +76,20 @@ unsigned long a;
 			(((a*(c&0xff0000) + ai*(t&0xff0000))&0xff000000)>>8);
 	}
 }
-static void colordot_32_composite(SDL_Surface *surf, int x, int y, unsigned long c, int f2)
+static void colordot_32_composite(SDL_Surface *surf, int x, int y, Uint32 c, int f2)
 {
-unsigned long a1, a2, a1a2, a1_a1a2, newa, newpixel;
-unsigned long *p, t;
+Uint32 a1, a2, a1a2, a1_a1a2, newa, newpixel;
+Uint32 *p, t;
 int c1, c2;
 
 	a2 = ((f2+1) * (c>>24))>>8;
 
 	if(a2==0xff)
-		*((unsigned long *)surf->pixels+y *
+		*((Uint32 *)surf->pixels+y *
 			surf->pitch/4+x)=c | 0xff000000;
 	else
 	{
-		p=((unsigned long *)surf->pixels)+y *
+		p=((Uint32 *)surf->pixels)+y *
 			surf->pitch/4+x;
 		t=*p;
 		a1=t>>24;
@@ -273,7 +279,10 @@ int iscomposite;
 
 	iscomposite = c->flags & SDL_SVG_FLAG_COMPOSITE;
 
-	if(c->surface->format->BytesPerPixel == 2)
+	if(c->surface->format->BytesPerPixel == 1)
+	{
+		c->colordot = colordot_8;
+	} else if(c->surface->format->BytesPerPixel == 2)
 	{
 		c->colordot = colordot_16;
 	} else
@@ -310,10 +319,19 @@ int iscomposite;
 		FT_RASTER_FLAG_CLIP;
 	myparams.gray_spans = myspanner;
 	myparams.user = c;
-	myparams.clip_box.xMin = 0;
-	myparams.clip_box.xMax = c->surface->w;
-	myparams.clip_box.yMin = 0;
-	myparams.clip_box.yMax = c->surface->h;
+	if(c->internal_flags & INT_FLAG_CLIPPING_SET)
+	{
+		myparams.clip_box.xMin = c->clip_xmin;
+		myparams.clip_box.yMin = c->clip_ymin;
+		myparams.clip_box.xMax = c->clip_xmax;
+		myparams.clip_box.yMax = c->clip_ymax;
+	} else
+	{
+		myparams.clip_box.xMin = 0;
+		myparams.clip_box.xMax = c->surface->w;
+		myparams.clip_box.yMin = 0;
+		myparams.clip_box.yMax = c->surface->h;
+	}
 
 // WARNING: The  grays raster_new is not thread safe, all instances use the
 // same raster structure
@@ -362,7 +380,7 @@ svg_matrix_t tm;
 		{
 			int c1,c2;
 			int r1,g1,b1,a1,r2,g2,b2,a2;
-			unsigned long t;
+			Uint32 t;
 			int v;
 
 			c1=NUM_GRADIENT_COLORS*i/(colorstops-1);
@@ -420,12 +438,13 @@ svg_matrix_t tm;
 
 		if(paint->p.gradient->units==SVG_GRADIENT_UNITS_USER)
 		{
-			c->gradient_p1 = FixCoords(c, c->gradient_p1);
-			c->gradient_p2 = FixCoords(c, c->gradient_p2);
-			c->gradient_r = FixSizes(c, (IPoint) {c->gradient_r, 0.0}).x;
+			IPoint tp;
+			tp = FixCoords(c, (IPoint) {c->w, c->h});
 
-			c->gm.a = c->gm.d = 1.0;
+			c->gm.a = c->w / tp.x;
+			c->gm.d = c->h / tp.y;
 			c->gm.c = c->gm.b = c->gm.e = c->gm.f = 0.0;
+
 		} else // BBOX
 		{
 			IPoint vx, vy, tv;

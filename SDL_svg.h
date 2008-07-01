@@ -3,6 +3,10 @@
 
 #include "SDL.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct SDL_svg_context SDL_svg_context;
 
 #define SDL_SVG_FLAG_DIRECT         0
@@ -22,5 +26,11 @@ void destroy_SDL_svg_context(SDL_svg_context *c);
 float SVG_Width(SDL_svg_context *c);
 float SVG_Height(SDL_svg_context *c);
 int SVG_Version(void);
+void SVG_SetClipping(SDL_svg_context *c, int minx, int miny,
+	int maxx, int maxy);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

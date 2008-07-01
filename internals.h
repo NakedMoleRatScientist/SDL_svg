@@ -1,9 +1,9 @@
 #ifndef INTERNALS_H
 #define INTERNALS_H
 
-#define SVG_VERSION 114
+#define SVG_VERSION 120
 
-#include <svg.h>
+#include <libsvg/svg.h>
 
 #ifdef VERBOSE
 #define dprintf(format, arg...) printf(format, ##arg)
@@ -26,10 +26,13 @@ typedef struct svg_matrix {
 #define MINPATH 256 // when we allocate a path, start with this number of points
 #define MINPATHSTOPS 64
 
+#define INT_FLAG_CLIPPING_SET      1
+
 #define NUM_GRADIENT_COLORS 256 // must be power of 2
 struct SDL_svg_context {
 	SDL_Surface *surface;
 	unsigned long flags;
+	unsigned long internal_flags;
 	int numpoints; // number of ipoints of path that is building up
 	int pathmax; // number of ipoints that will fit in the allocated path
 	IPoint *path; // path that is building up
@@ -41,17 +44,19 @@ struct SDL_svg_context {
 	double FillOpacity;
 // svg_paint_t
 	void *paint; // Big question who deallocates this
+	void *paintstack[MATRIXSTACKDEPTH];
+	int paintsp;
 	IPoint gradient_p1; // for radial, the center point
 	IPoint gradient_p2; // for radial, the focus point
 	float gradient_r;
 	int gradient_policy;
 	int tmatrixsp;
 	svg_matrix_t tmatrixstack[MATRIXSTACKDEPTH];
-	unsigned long gradient_colors[NUM_GRADIENT_COLORS];
-	unsigned long solidcolor;
+	Uint32 gradient_colors[NUM_GRADIENT_COLORS];
+	Uint32 solidcolor;
 // stuff related to the gray raster engine from freetype
 	void (*renderfunc)(SDL_svg_context *c, void *span, int y);
-	void (*colordot)(SDL_Surface *, int x, int y, unsigned long c, int f2);
+	void (*colordot)(SDL_Surface *, int x, int y, Uint32 c, int f2);
 	char pool[0x40000]; // memory area used by gray raster engine
 //
 	svg_matrix_t gm;
@@ -68,6 +73,7 @@ struct SDL_svg_context {
 	int TargetOffsetX;
 	int TargetOffsetY;
 
+	int clip_xmin, clip_ymin, clip_xmax, clip_ymax; // in pixel coords
 
 };
 

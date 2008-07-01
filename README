@@ -1,3 +1,25 @@
+------------------------------------------------------------------------------
+David Ashley (DA) Sun Feb 20 20:25:32 PST 2005
+dash@xdr.com
+
+To build do
+./configure
+make
+make install
+
+It might work. It's my first attempt at the automake stuff.
+
+The ./clean.sh can be used to wipe out everything, but then you need to run
+./autogen.sh
+to recreate the configure script.
+
+There usually are other targets like
+make clean
+and
+make distclean
+
+The svgtest program can be used to load and display an SVG file.
+------------------------------------------------------------------------------
 David Ashley Sun Jan  9 11:33:33 PST 2005
 dash@xdr.com
 
@@ -55,5 +77,5 @@ a fantastic program, very useful. One big complaint I have is the little
 dialogue boxes that pop up don't have dragbars (at least in my window manager)
 nor do they have a close icon.
 
-Anyway read the NOTES file for some comments on architecture + probems.
+Anyway read the CHANGES file for some comments on architecture + probems.
 Read the TODO file for a list of things I think need doing on this project.

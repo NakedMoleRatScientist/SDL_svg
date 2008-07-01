@@ -1,3 +1,4 @@
+#define _STANDALONE_
 /***************************************************************************/
 /*                                                                         */
 /*  ftgrays.c                                                              */
@@ -103,7 +104,7 @@
 
 #include <string.h>             /* for ft_memcpy() */
 #include <setjmp.h>
-#include <limits.h>
+//#include <limits.h>
 #define FT_UINT_MAX  UINT_MAX
 
 #define ft_memset   memset

@@ -1,0 +1,59 @@
+%define name @PACKAGE@
+%define version @VERSION@
+%define release 1
+
+Summary: Simple DirectMedia Layer - Scaled Vector Graphics library
+Name: %{name}
+Version: %{version}
+Release: %{release}
+Source0: %{name}-%{version}.tar.gz
+Copyright: LGPL
+Group: System Environment/Libraries
+BuildRoot: /var/tmp/%{name}-buildroot
+Prefix: %{_prefix}
+Packager: David Ashley
+#BuildRequires: SDL-devel
+
+%description
+This library allows you to render SVG files onto SDL surfaces
+
+%package devel
+Summary: Libraries, includes and more to develop SDL applications.
+Group: Development/Libraries
+Requires: %{name}
+Requires: SDL-devel
+
+%description devel
+This library allows you to render SVG files onto SDL surfaces
+
+%prep
+rm -rf ${RPM_BUILD_ROOT}
+
+%setup
+
+%build
+CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%{prefix}
+make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install prefix=$RPM_BUILD_ROOT/%{prefix}
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root)
+%doc README CHANGES COPYING
+%{prefix}/lib/lib*.so.*
+%{prefix}/lib/lib*.so
+
+%files devel
+%defattr(-,root,root)
+%{prefix}/lib/*a
+%{prefix}/include/SDL/
+
+%changelog
+* Sun Feb 20 07:46:40 PST 2005 David Ashley
+- Put the autogen stuff together
+

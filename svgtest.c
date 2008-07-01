@@ -31,7 +31,7 @@ int code;
 		exit(1);
 	}
 	atexit(SDL_Quit);
-	/* Set 640x480 16 bpp video mode */
+	/* Set 640x480 32 bpp video mode */
 	if ( (screen=SDL_SetVideoMode(WIDTH,HEIGHT,32,SDL_SWSURFACE)) == NULL )
 	{
 		fprintf(stderr, "Couldn't set %dx%dx32 video mode: %s\n", WIDTH, HEIGHT,
@@ -43,7 +43,7 @@ int code;
 	full.y = 0;
 	full.w = screen->w;
 	full.h = screen->h;
-	SDL_FillRect(screen, &full, 0x808080);
+	SDL_FillRect(screen, &full, SDL_MapRGB(screen->format, 0x80, 0x80, 0x80));
 	SDL_UpdateRect(screen,0,0,0,0);
 
 	SDL_svg_context *TestImage = SVG_Load (argv[1]);
